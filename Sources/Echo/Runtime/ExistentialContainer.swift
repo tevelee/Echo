@@ -82,9 +82,18 @@ public struct AnyExistentialContainer {
 public struct ExistentialContainer {
   /// The base any existential, also known as Any.
   public var base: AnyExistentialContainer
-  
+
   /// A pointer to the witness table.
   public var witnessTable: WitnessTable
+
+  /// Initializes an existential container with a base container and witness table.
+  /// - Parameters:
+  ///   - base: The base any existential container holding the value and type metadata.
+  ///   - witnessTable: The witness table for the protocol conformance.
+  public init(base: AnyExistentialContainer, witnessTable: WitnessTable) {
+    self.base = base
+    self.witnessTable = witnessTable
+  }
 }
 
 /// An existential container is a type in Swift that contains some struct or

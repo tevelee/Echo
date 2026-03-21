@@ -25,9 +25,16 @@
 ///
 public struct WitnessTable: LayoutWrapper {
   typealias Layout = _WitnessTable
-  
-  let ptr: UnsafeRawPointer
-  
+
+  /// The raw pointer to the witness table in memory.
+  public let ptr: UnsafeRawPointer
+
+  /// Initializes a witness table from a raw pointer.
+  /// - Parameter ptr: A pointer to the witness table's memory layout.
+  public init(ptr: UnsafeRawPointer) {
+    self.ptr = ptr
+  }
+
   /// The conformance descriptor that describes the protocol conformance
   /// relationship for whatever type this witness table is representing, and
   /// the protocol that type conforms to.
