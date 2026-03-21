@@ -98,6 +98,41 @@ func registerProtocolConformances(section: UnsafeRawPointer, size: Int) {
   }
 }
 
+/// Finds a conformance descriptor for a given protocol by scanning all
+/// registered conformances in the binary.
+///
+/// - Parameter protocolDescriptor: The protocol to find a conformance for.
+/// - Returns: A conformance descriptor if any type in the binary conforms.
+public func findConformance(
+  to protocolDescriptor: ProtocolDescriptor
+) -> ConformanceDescriptor? {
+  #if os(Linux)
+  iterateSharedObjects()
+  #endif
+
+  return conformanceLock.withLock {
+    for (_, confs) in conformances {
+      for conf in confs {
+        if conf.protocol == protocolDescriptor {
+          return conf
+        }
+      }
+    }
+    return nil
+  }
+}
+
+/// Finds a conformance descriptor for a protocol with the given name.
+///
+/// - Parameter protocolName: The name of the protocol (e.g., "UserService").
+/// - Returns: A conformance descriptor if found.
+public func findConformance(toProtocolNamed protocolName: String) -> ConformanceDescriptor? {
+  guard let proto = protocols.first(where: { $0.name == protocolName }) else {
+    return nil
+  }
+  return findConformance(to: proto)
+}
+
 //===----------------------------------------------------------------------===//
 // __swift5_types/swift5_type_metadata
 //===----------------------------------------------------------------------===//
