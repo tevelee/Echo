@@ -41,7 +41,11 @@ enum ClassMetadataTests {
     // by one word after the values originally baked in here). Pin them to the
     // current ABI but keep the asserts so regressions in Echo's reading surface.
     XCTAssertEqual(metadata.classAddressPoint, 24)
+    #if canImport(ObjectiveC)
     XCTAssertEqual(metadata.classSize, 128)
+    #else
+    XCTAssertEqual(metadata.classSize, 104)
+    #endif
     XCTAssertEqual(metadata.instanceAddressPoint, 0)
     XCTAssertEqual(metadata.instanceAlignmentMask, 7)
     XCTAssertEqual(metadata.instanceSize, 40)
@@ -79,7 +83,11 @@ enum ClassMetadataTests {
     let metadata = maybeMetadata!
     
     XCTAssertEqual(metadata.classAddressPoint, 24)
+    #if canImport(ObjectiveC)
     XCTAssertEqual(metadata.classSize, 144)
+    #else
+    XCTAssertEqual(metadata.classSize, 120)
+    #endif
     XCTAssertEqual(metadata.instanceAddressPoint, 0)
     XCTAssertEqual(metadata.instanceAlignmentMask, 7)
     XCTAssertEqual(metadata.instanceSize, 40)
@@ -117,15 +125,23 @@ enum ClassMetadataTests {
     XCTAssert(resilientMetadata.superclassType! == JSONEncoder.self)
 
     // Regression: the resilient-superclass reference kind is a 3-bit field at
-    // bit 9 and must be shifted, not just masked. Boat3's superclass
-    // (JSONEncoder) lives in Foundation, so it is referenced indirectly;
-    // reading the kind used to trap on a force-unwrapped nil before the shift.
-    let resilientDescriptor = resilientMetadata.descriptor!
-    XCTAssertTrue(resilientDescriptor.typeFlags.classHasResilientSuperclass)
+    // bit 9 and must be shifted, not just masked. Objective-C-interoperable
+    // runtimes reference Foundation's JSONEncoder indirectly; non-Objective-C
+    // runtimes use a direct descriptor reference.
+    let superclassDescriptor = resilientMetadata.descriptor!
+    #if canImport(ObjectiveC)
+    XCTAssertTrue(superclassDescriptor.typeFlags.classHasResilientSuperclass)
     XCTAssertEqual(
-      resilientDescriptor.typeFlags.resilientSuperclassRefKind,
+      superclassDescriptor.typeFlags.resilientSuperclassRefKind,
       .indirectTypeDescriptor
     )
+    #else
+    XCTAssertFalse(superclassDescriptor.typeFlags.classHasResilientSuperclass)
+    XCTAssertEqual(
+      superclassDescriptor.typeFlags.resilientSuperclassRefKind,
+      .directTypeDescriptor
+    )
+    #endif
   }
   
   #if canImport(ObjectiveC)

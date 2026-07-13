@@ -74,7 +74,7 @@ public struct ClassMetadata: TypeMetadata, LayoutWrapper {
   
   /// Whether or not this class was defined in Swift.
   public var isSwiftClass: Bool {
-    #if canImport(Darwin)
+    #if canImport(ObjectiveC)
     // Xcode uses this and older runtimes do too
     var mask = 0x1
     
@@ -82,11 +82,12 @@ public struct ClassMetadata: TypeMetadata, LayoutWrapper {
     if #available(macOS 10.14.4, iOS 12.2, tvOS 12.2, watchOS 5.2, *) {
       mask = 0x2
     }
-    #else
-    let mask = 0x1
-    #endif
-    
     return Int(bitPattern: layout._rodata) & mask != 0
+    #else
+    // Without Objective-C interoperability, class metadata is always Swift
+    // type metadata and has no cache-data or data-pointer fields.
+    return true
+    #endif
   }
   
   /// The address point for instances of this type.
@@ -132,8 +133,10 @@ extension ClassMetadata: Equatable {}
 struct _ClassMetadata {
   let _kind: Int
   let _superclass: Any.Type?
+  #if canImport(ObjectiveC)
   let _reserved: (Int, Int)
   let _rodata: UnsafeRawPointer
+  #endif
   let _flags: ClassMetadata.Flags
   let _instanceAddressPoint: UInt32
   let _instanceSize: UInt32

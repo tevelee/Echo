@@ -20,7 +20,11 @@ extension EchoTests {
     XCTAssertEqual(descriptor.superclass.load(as: CChar.self), 0) // nullptr
     XCTAssertEqual(descriptor.numFields, 1)
     XCTAssertEqual(descriptor.numMembers, 3) // name, init, sayHello
+    #if canImport(ObjectiveC)
     XCTAssertEqual(descriptor.fieldOffsetVectorOffset, 10)
+    #else
+    XCTAssertEqual(descriptor.fieldOffsetVectorOffset, 7)
+    #endif
     
     let child = reflectClass(Child.self)!
     let childDescriptor = child.descriptor!
@@ -29,7 +33,10 @@ extension EchoTests {
     XCTAssertEqual(size, 5)
     XCTAssertEqual(childDescriptor.numFields, 0)
     XCTAssertEqual(childDescriptor.numMembers, 0)
+    #if canImport(ObjectiveC)
     XCTAssertEqual(childDescriptor.fieldOffsetVectorOffset, 13)
+    #else
+    XCTAssertEqual(childDescriptor.fieldOffsetVectorOffset, 10)
+    #endif
   }
 }
-
