@@ -34,6 +34,6 @@ final class EchoTests: XCTestCase {
     ("testConformanceDescriptor", testConformanceDescriptor),
     ("testExistentialContainer", testExistentialContainer),
     ("testImageInspection", testImageInspection),
+    ("testPublicForkAPIs", testPublicForkAPIs),
   ]
 }
-

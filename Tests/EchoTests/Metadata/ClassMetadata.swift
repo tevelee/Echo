@@ -21,7 +21,7 @@ class Boat2<T, U> {
   }
 }
 
-class Boat3<T>: JSONEncoder {
+class Boat3<T>: JSONEncoder, @unchecked Sendable {
   let name: T
   
   init(name: T) {

@@ -33,7 +33,7 @@ enum StructMetadataTests {
     XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
     XCTAssertEqual(metadata.vwt.size, 24)
     XCTAssertEqual(metadata.vwt.stride, 24)
-    XCTAssertEqual(metadata.vwt.flags.bits, 65543)
+    assertStringAndIntLayoutFlags(metadata.vwt.flags)
     
     // type(of:)
     
@@ -72,7 +72,19 @@ enum StructMetadataTests {
     XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
     XCTAssertEqual(metadata.vwt.size, 24)
     XCTAssertEqual(metadata.vwt.stride, 24)
-    XCTAssertEqual(metadata.vwt.flags.bits, 65543)
+    assertStringAndIntLayoutFlags(metadata.vwt.flags)
+  }
+
+  private static func assertStringAndIntLayoutFlags(
+    _ flags: ValueWitnessTable.Flags
+  ) {
+    // New runtimes may add flags that do not change these layout semantics.
+    XCTAssertEqual(flags.alignment, 8)
+    XCTAssertTrue(flags.isValueInline)
+    XCTAssertFalse(flags.isPOD)
+    XCTAssertTrue(flags.isBitwiseTakable)
+    XCTAssertFalse(flags.hasEnumWitnesses)
+    XCTAssertFalse(flags.isIncomplete)
   }
 }
 
@@ -82,4 +94,3 @@ extension EchoTests {
     try StructMetadataTests.testGenericStruct()
   }
 }
-
