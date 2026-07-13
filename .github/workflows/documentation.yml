@@ -11,19 +11,70 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
-      - name: Gen Documentation
-        uses: SwiftDocOrg/swift-doc@master
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          inputs: "Sources/Echo"
-          module-name: Echo
-          output: "Documentation"
-      - name: Upload
-        uses: SwiftDocOrg/github-wiki-publish-action@v1
-        with:
-          path: "Documentation"
+          persist-credentials: false
+      - name: Verify that the wiki is initialized
         env:
-          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
+          WIKI_TOKEN: ${{ github.token }}
+        run: >-
+          git ls-remote
+          "https://x-access-token:$WIKI_TOKEN@github.com/$GITHUB_REPOSITORY.wiki.git"
+          HEAD
+      - name: Check out the pinned swift-doc source
+        run: |
+          source="$RUNNER_TEMP/swift-doc"
+          git init "$source"
+          git -C "$source" remote add origin https://github.com/SwiftDocOrg/swift-doc.git
+          git -C "$source" fetch --depth=1 origin f935ebfe524a0ff27bda07dadc3662e3e45b5125
+          git -C "$source" checkout --detach FETCH_HEAD
+      - name: Generate documentation
+        run: |
+          docker run --rm \
+            --volume "$RUNNER_TEMP/swift-doc:/swift-doc" \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /swift-doc \
+            swift:5.3@sha256:eb5a806503f3a2abc5d2bd61d570cdb2222426c44764b2165420007fc289d74b \
+            bash -euo pipefail -c '
+              apt-get -qq update
+              apt-get install -y --no-install-recommends graphviz-dev libxml2-dev
+              swift build -c release
+              .build/release/swift-doc generate /repo/Sources/Echo \
+                --module-name Echo \
+                --output /repo/Documentation
+              chmod -R a+rX /repo/Documentation
+            '
+      - name: Publish documentation to the wiki
+        env:
+          WIKI_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$WIKI_TOKEN"
+
+          wiki=$(mktemp -d)
+          repository="https://x-access-token:$WIKI_TOKEN@github.com/$GITHUB_REPOSITORY.wiki.git"
+
+          git -C "$wiki" init
+          git -C "$wiki" config user.name "$GITHUB_ACTOR"
+          git -C "$wiki" config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git -C "$wiki" remote add origin "$repository"
+          if git -C "$wiki" fetch --depth=1 origin master; then
+            git -C "$wiki" checkout -B master FETCH_HEAD
+          else
+            git -C "$wiki" checkout --orphan master
+          fi
+
+          find Documentation -maxdepth 1 -type f -name '*.md' \
+            -exec cp --target-directory="$wiki" {} +
+
+          git -C "$wiki" add .
+          if git -C "$wiki" diff --cached --quiet; then
+            exit 0
+          fi
+
+          git -C "$wiki" commit -m 'Automatically publish wiki'
+          git -C "$wiki" push origin HEAD:master
