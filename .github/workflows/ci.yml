@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "29 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  workflow-lint:
+    name: Workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Run actionlint
+        run: >-
+          docker run --rm
+          --volume "$PWD:/repo"
+          --workdir /repo
+          rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+
+  minimum-macos:
+    name: Swift 6.1 / macOS arm64
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.swift') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Select Xcode 16.4
+        run: sudo xcode-select --switch /Applications/Xcode_16.4.app/Contents/Developer
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/ci-minimum-debug
+      - name: Test release
+        run: swift test -c release --scratch-path .build/ci-minimum-release
+  current-macos:
+    name: Current Swift / macOS arm64
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.swift') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/ci-current-debug
+      - name: Test release
+        run: swift test -c release --scratch-path .build/ci-current-release
+  linux:
+    name: Swift 6.1 / Ubuntu 24.04 / ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: swift:6.1.3-noble@sha256:e1cdaf7ddc9de37d8561da7a260535236694fca8c1b67d3129d47d8b180a9394
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/org.swift.swiftpm
+          key: >-
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.swift') }}
+          restore-keys: |
+            swiftpm-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Show toolchain
+        run: swift --version
+      - name: Test debug
+        run: swift test --scratch-path .build/ci-linux-debug
+      - name: Test release
+        run: swift test -c release --scratch-path .build/ci-linux-release
+  ci-required:
+    name: CI required
+    if: always()
+    needs:
+      - workflow-lint
+      - minimum-macos
+      - current-macos
+      - linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CI job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if test "$result" != success; then
+              echo "A required CI job concluded with: $result" >&2
+              exit 1
+            fi
+          done

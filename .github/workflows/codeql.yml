@@ -1,0 +1,144 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "11 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-actions:
+    name: Analyze Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: actions
+          build-mode: none
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:actions
+
+  analyze-swift:
+    name: Analyze Swift
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Check out the pinned Swift Atomics dependency
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: apple/swift-atomics
+          ref: 0442cb5a3f98ab802acb777929fdb446bda11a34 # 1.3.1
+          path: .ci-dependencies/swift-atomics
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve Swift Atomics from the pinned checkout
+        run: >-
+          git config --global
+          url."file://$GITHUB_WORKSPACE/.ci-dependencies/swift-atomics".insteadOf
+          https://github.com/apple/swift-atomics.git
+      - name: Restore SwiftPM cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: >-
+            swiftpm-codeql-v1-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('Package.swift') }}
+          restore-keys: |
+            swiftpm-codeql-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: swift
+          build-mode: manual
+      - name: Build
+        run: swift build
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:swift
+
+  analyze-c-cpp:
+    name: Analyze C/C++
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - name: Show toolchain
+        run: swift --version
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+      - name: Build C target
+        run: |
+          output="$RUNNER_TEMP/echo-c-objects"
+          mkdir -p "$output"
+          for source in Sources/CEcho/*.c; do
+            clang \
+              -std=c11 \
+              -I Sources/CEcho/include \
+              -c "$source" \
+              -o "$output/$(basename "${source%.c}").o"
+          done
+      - name: Analyze
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          category: /language:c-cpp
+
+  codeql-required:
+    name: CodeQL required
+    if: always()
+    needs:
+      - analyze-actions
+      - analyze-swift
+      - analyze-c-cpp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every CodeQL analysis
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if test "$result" != success; then
+              echo "A required CodeQL analysis concluded with: $result" >&2
+              exit 1
+            fi
+          done
