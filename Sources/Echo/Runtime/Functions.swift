@@ -23,19 +23,43 @@ public struct BoxPair {
   public let buffer: UnsafeRawPointer
 }
 
-@_silgen_name("swift_allocBox")
-public func swift_allocBox(for type: Any.Type) -> BoxPair
+public func swift_allocBox(for type: Any.Type) -> BoxPair {
+  let pair = echo_swift_allocBox(
+    unsafeBitCast(type, to: UnsafeRawPointer.self)
+  )
+  return BoxPair(
+    heapObj: UnsafePointer(
+      pair.heapObj.unsafelyUnwrapped.assumingMemoryBound(to: HeapObject.self)
+    ),
+    buffer: UnsafeRawPointer(pair.buffer.unsafelyUnwrapped)
+  )
+}
 
 public func swift_allocBox(for metadata: Metadata) -> BoxPair {
   swift_allocBox(for: metadata.type)
 }
 
-@_silgen_name("swift_makeBoxUnique")
 func _swift_makeBoxUnique(
   for buffer: UnsafeRawPointer,
   type: Any.Type,
   alignMask: UInt
-) -> BoxPair
+) -> BoxPair {
+  let pair = echo_swift_makeBoxUnique(
+    UnsafeMutableRawPointer(mutating: buffer),
+    unsafeBitCast(type, to: UnsafeRawPointer.self),
+    Int(alignMask)
+  )
+  return BoxPair(
+    heapObj: UnsafePointer(
+      pair.heapObj.unsafelyUnwrapped.assumingMemoryBound(to: HeapObject.self)
+    ),
+    buffer: UnsafeRawPointer(pair.buffer.unsafelyUnwrapped)
+  )
+}
+
+func _swift_deallocUninitializedBox(_ heapObj: UnsafePointer<HeapObject>) {
+  swift_deallocBox(UnsafeMutableRawPointer(mutating: heapObj))
+}
 
 /*
 public func swift_projectBox(

@@ -24,6 +24,17 @@ const void *__ptrauth_strip_asda(const void *ptr);
 // Box Functions
 //===----------------------------------------------------------------------===//
 
+typedef struct EchoBoxPair {
+  void *heapObj;
+  void *buffer;
+} EchoBoxPair;
+
+EchoBoxPair echo_swift_allocBox(const void *type);
+
+EchoBoxPair echo_swift_makeBoxUnique(void *buffer,
+                                     const void *type,
+                                     size_t alignMask);
+
 // void swift_deallocBox(HeapObject *obj);
 extern void swift_deallocBox(void *heapObj);
 
