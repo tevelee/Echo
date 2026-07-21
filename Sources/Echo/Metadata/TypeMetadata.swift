@@ -6,9 +6,6 @@
 //  Copyright © 2019 - 2021 Alejandro Alonso. All rights reserved.
 //
 
-#if os(Linux)
-import CEcho
-#endif
 import Foundation
 
 /// Type metadata refers to those metadata records who declare a new type in
@@ -37,9 +34,7 @@ extension TypeMetadata {
   ///       // conformances is now outdated! Refresh it by calling this again.
   ///       conformances = metadata.conformances
   public var conformances: [ConformanceDescriptor] {
-    #if os(Linux)
-    iterateSharedObjects()
-    #endif
+    refreshLoadedImages()
     
     guard let contextDescriptorPtr = contextDescriptor?.ptr else {
         return []

@@ -6,6 +6,21 @@ A complete reflection package for Swift.
 
 Documentation: [Echo Wiki](https://github.com/Azoy/Echo/wiki)
 
+## Platform support
+
+Echo discovers runtime metadata in Mach-O images on Apple platforms and ELF
+images on Linux and Android. On Android, linked executables and extracted shared
+objects are supported; shared objects loaded directly from an APK are not yet
+discoverable because Echo reopens images by filesystem path.
+
+Android validation uses Swift 6.3.3, the official Swift Android SDK, and Android
+NDK r27d or later to cross-build linked arm64 and x86_64 smoke executables in
+both debug and release configurations:
+
+```sh
+Scripts/validate-android.sh
+```
+
 ## Installation
 
 Depending on what version of Swift you are targeting, the installation and what version you install can differ.

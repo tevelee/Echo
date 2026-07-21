@@ -54,6 +54,7 @@ static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
   soHeader = (ElfW(Ehdr) *)so;
   
   if (so == NULL) {
+    fclose(file);
     return 0;
   }
   

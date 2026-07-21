@@ -14,9 +14,15 @@ import MachO
 import Glibc
 #endif
 
-#if os(Linux)
+#if os(Linux) || os(Android)
 import CEcho
 #endif
+
+func refreshLoadedImages() {
+  #if os(Linux) || os(Android)
+  iterateSharedObjects()
+  #endif
+}
 
 //===----------------------------------------------------------------------===//
 // __swift5_protos/swift5_protocols
@@ -35,9 +41,7 @@ import CEcho
 ///       // protocols is now outdated! Refresh it by calling this again.
 ///       protocols = Echo.protocols
 public var protocols: [ProtocolDescriptor] {
-  #if os(Linux)
-  iterateSharedObjects()
-  #endif
+  refreshLoadedImages()
   
   let protos = protocolLock.withLock {
     _protocols
@@ -106,9 +110,7 @@ public func registerProtocolConformances(section: UnsafeRawPointer, size: Int) {
 public func findConformance(
   to protocolDescriptor: ProtocolDescriptor
 ) -> ConformanceDescriptor? {
-  #if os(Linux)
-  iterateSharedObjects()
-  #endif
+  refreshLoadedImages()
 
   return conformanceLock.withLock {
     for (_, confs) in conformances {
@@ -150,9 +152,7 @@ public func findConformance(toProtocolNamed protocolName: String) -> Conformance
 ///       // protocols is now outdated! Refresh it by calling this again.
 ///       protocols = Echo.protocols
 public var types: [ContextDescriptor] {
-  #if os(Linux)
-  iterateSharedObjects()
-  #endif
+  refreshLoadedImages()
   
   let types = typeLock.withLock {
     _types
@@ -253,7 +253,7 @@ public func lookupSection(
 // ELF Image Inspection
 //===----------------------------------------------------------------------===//
 
-#if os(Linux)
+#if os(Linux) || os(Android)
 
 let sharedObjectLock = NSLock()
 var sharedObjects = Set<String>()
