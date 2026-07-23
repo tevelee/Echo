@@ -40,7 +40,7 @@ void _loadImageFunc(const struct mach_header *header, intptr_t size) {
 }
 
 __attribute((__constructor__))
-void loadImages() {
+void loadImages(void) {
   _dyld_register_func_for_add_image(_loadImageFunc);
 }
 
@@ -82,7 +82,7 @@ SWIFT_SECTION(swift5_type_metadata)
 
 #undef SWIFT_SECTION
 
-void iterateSharedObjects();
+void iterateSharedObjects(void);
 
 extern bool cacheSharedObject(const char *name);
 

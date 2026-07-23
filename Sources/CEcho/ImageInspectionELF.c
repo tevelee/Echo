@@ -126,7 +126,7 @@ static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
 
 // Iterate through all of the current shared objects loaded into this
 // program's memory.
-void iterateSharedObjects() {
+void iterateSharedObjects(void) {
   dl_iterate_phdr(imageCallback, NULL);
 }
 
@@ -134,7 +134,7 @@ void iterateSharedObjects() {
   handle(&__start_##name, &__stop_##name - &__start_##name);
 
 __attribute__((__constructor__))
-static void loadImages() {
+static void loadImages(void) {
   // This will register the executable's protocol list.
   SWIFT_REGISTER_SECTION(swift5_protocols, registerProtocols)
   

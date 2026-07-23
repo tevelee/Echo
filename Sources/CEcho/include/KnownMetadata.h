@@ -26,7 +26,7 @@ extern void $s##SYMBOL##N;
 // Define this utility function because you can't see variables that start with
 // $ in Swift.
 #define BUILTIN(NAME, SYMBOL) \
-void *getBuiltin##NAME##Metadata();
+void *getBuiltin##NAME##Metadata(void);
 #include "Builtins.def"
 
 #undef BUILTIN

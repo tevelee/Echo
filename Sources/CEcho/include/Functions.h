@@ -42,7 +42,7 @@ extern void swift_deallocBox(void *heapObj);
 extern void *swift_projectBox(void *heapObj);
 
 // HeapObject *swift_allocEmptyBox();
-extern void *swift_allocEmptyBox();
+extern void *swift_allocEmptyBox(void);
 
 //===----------------------------------------------------------------------===//
 // Object Functions

@@ -13,7 +13,7 @@
 // metadata which points to the value witness table rather than the kind.
 // Move the pointer down one word to be correct.
 #define BUILTIN(NAME, SYMBOL) \
-void *getBuiltin##NAME##Metadata() { \
+void *getBuiltin##NAME##Metadata(void) { \
   return &$s##SYMBOL##N + sizeof(void*); \
 }
 #include "include/Builtins.def"
