@@ -20,6 +20,17 @@ extension ConformanceDescriptor {
     public var hasGenericWitnessTable: Bool {
       bits & (0x1 << 17) != 0
     }
+
+    /// Whether this descriptor represents a protocol-to-protocol
+    /// conformance synthesized by the runtime.
+    public var isConformanceOfProtocol: Bool {
+      bits & (0x1 << 18) != 0
+    }
+
+    /// Whether uses of this conformance are isolated to a global actor.
+    public var hasGlobalActorIsolation: Bool {
+      bits & (0x1 << 19) != 0
+    }
     
     /// Whether or not this conformance has resilient witnesses.
     public var hasResilientWitnesses: Bool {
@@ -47,6 +58,12 @@ extension ConformanceDescriptor {
     /// same type requirement.
     public var numConditionalRequirements: Int {
       Int(bits & (0xFF << 8)) >> 8
+    }
+
+    /// The number of conditional generic-pack shape descriptors carried by
+    /// this conformance.
+    public var numConditionalPackShapeDescriptors: Int {
+      Int(bits >> 24)
     }
     
     /// The type reference kind to the type that is conforming to some protocol
