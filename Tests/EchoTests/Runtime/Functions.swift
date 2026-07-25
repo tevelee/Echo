@@ -23,6 +23,21 @@ private struct BoxedValue {
 
 extension EchoTests {
   @Test
+  func dynamicCastFlagsIncludeModernIsolatedConformanceRule() {
+    let flags: DynamicCastFlags = [
+      .takeOnSuccess,
+      .destroyOnFailure,
+      .prohibitIsolatedConformances,
+    ]
+
+    #expect(flags.rawValue == 0xE)
+    #expect(flags.contains(.unconditional) == false)
+    #expect(flags.contains(.takeOnSuccess))
+    #expect(flags.contains(.destroyOnFailure))
+    #expect(flags.contains(.prohibitIsolatedConformances))
+  }
+
+  @Test
   func testBoxRuntimeFunctions() {
     var wasDeinitialized = false
     exerciseBoxRuntimeFunctions {
