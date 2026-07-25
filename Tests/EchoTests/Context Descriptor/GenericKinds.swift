@@ -66,6 +66,16 @@ extension EchoTests {
     let noncopyableType = try #require(reflectStruct(NoncopyableContextFixture.self))
     #expect(noncopyableType.descriptor.flags.hasInvertibleProtocols)
     #expect(noncopyableType.descriptor.invertedProtocols?.invertsCopyable == true)
+    #expect(noncopyableType.vwt.flags.isCopyable == false)
+
+    // Copyability and bitwise borrowing are independent ABI properties. A
+    // simple noncopyable value can still be bitwise-borrowable, while values
+    // that form lifetime dependencies must be passed indirectly.
+    let dependencyFlags = ValueWitnessTable.Flags(bits: 0x02000000)
+    #expect(dependencyFlags.isAddressableForDependencies)
+    #expect(dependencyFlags.isBitwiseBorrowable)
+    let nonBorrowableFlags = ValueWitnessTable.Flags(bits: 0x01100000)
+    #expect(nonBorrowableFlags.isBitwiseBorrowable == false)
 
     // Swift 6 emits noncopyable descriptors into the separate types2 image
     // section. Echo must discover that section without handing it to an older

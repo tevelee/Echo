@@ -284,6 +284,7 @@ extension ValueWitnessTable {
       case incomplete          = 0x400000
       case isNonCopyable       = 0x800000
       case isNonBitwiseBorrowable = 0x1000000
+      case isAddressableForDependencies = 0x2000000
     }
     
     /// Flags as represented in bits.
@@ -333,6 +334,12 @@ extension ValueWitnessTable {
     /// Whether this type can be borrowed by bitwise operations.
     public var isBitwiseBorrowable: Bool {
       isBitwiseTakable && bits & Flags.isNonBitwiseBorrowable.rawValue == 0
+    }
+
+    /// Whether values of this type must be passed indirectly when producing
+    /// lifetime-dependent values that could reference their inline storage.
+    public var isAddressableForDependencies: Bool {
+      bits & Flags.isAddressableForDependencies.rawValue != 0
     }
   }
 }

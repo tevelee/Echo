@@ -39,6 +39,7 @@ public struct ValueWitnessTable: LayoutWrapper {
     _ dest: UnsafeMutableRawPointer,
     _ source: UnsafeMutableRawPointer
   ) {
+    requireCopyable(operation: "initialize a buffer with a copy")
     #if _ptrauth(_arm64e)
     echo_vwt_initializeBufferWithCopyOfBuffer(layout.signed, dest, source,
                                               trailing)
@@ -66,6 +67,7 @@ public struct ValueWitnessTable: LayoutWrapper {
     _ dest: UnsafeMutableRawPointer,
     _ source: UnsafeMutableRawPointer
   ) {
+    requireCopyable(operation: "initialize with a copy")
     #if _ptrauth(_arm64e)
     echo_vwt_initializeWithCopy(layout.signed, dest, source, trailing)
     #else
@@ -82,6 +84,7 @@ public struct ValueWitnessTable: LayoutWrapper {
     _ dest: UnsafeMutableRawPointer,
     _ source: UnsafeMutableRawPointer
   ) {
+    requireCopyable(operation: "assign with a copy")
     #if _ptrauth(_arm64e)
     echo_vwt_assignWithCopy(layout.signed, dest, source, trailing)
     #else
@@ -176,6 +179,13 @@ public struct ValueWitnessTable: LayoutWrapper {
   /// The number of extra inhabitants in this type.
   public var extraInhabitantCount: Int {
     Int(_vwt._extraInhabitantCount)
+  }
+
+  private func requireCopyable(operation: String) {
+    precondition(
+      flags.isCopyable,
+      "Cannot \(operation) for a noncopyable value witness table."
+    )
   }
 }
 
