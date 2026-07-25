@@ -166,4 +166,53 @@ extension EchoTests {
     #expect(context.conditionalInvertedProtocolRequirementCounts.isEmpty)
     #expect(context.conditionalInvertedProtocolRequirements.isEmpty)
   }
+
+  @Test
+  func sameConformanceRequirementsResolveDirectAndIndirectDescriptors() {
+    let buffer = UnsafeMutableRawPointer.allocate(
+      byteCount: 80,
+      alignment: MemoryLayout<UnsafeRawPointer>.alignment
+    )
+    defer { buffer.deallocate() }
+    buffer.initializeMemory(as: UInt8.self, repeating: 0, count: 80)
+
+    // Generic requirement descriptors are 12 bytes. Place their payload
+    // field at offsets 8 and 24, then exercise direct and indirect relative
+    // pointer encodings against the same conformance descriptor at offset 64.
+    buffer.storeBytes(
+      of: _GenericRequirementDescriptor(
+        _flags: GenericRequirementDescriptor.Flags(bits: 0x3),
+        _param: RelativeDirectPointer<CChar>(offset: 0),
+        _requirement: 56
+      ),
+      as: _GenericRequirementDescriptor.self
+    )
+    buffer.storeBytes(
+      of: _GenericRequirementDescriptor(
+        _flags: GenericRequirementDescriptor.Flags(bits: 0x3),
+        _param: RelativeDirectPointer<CChar>(offset: 0),
+        _requirement: 9
+      ),
+      toByteOffset: 16,
+      as: _GenericRequirementDescriptor.self
+    )
+
+    let conformanceAddress = UnsafeRawPointer(buffer + 64)
+    buffer.storeBytes(of: conformanceAddress, toByteOffset: 32, as: UnsafeRawPointer.self)
+    buffer.storeBytes(
+      of: _ConformanceDescriptor(
+        _protocol: RelativeIndirectablePointer<_ProtocolDescriptor>(offset: 0),
+        _typeRef: 0,
+        _witnessTablePattern: RelativeDirectPointer<_WitnessTable>(offset: 0),
+        _flags: ConformanceDescriptor.Flags(bits: 0)
+      ),
+      toByteOffset: 64,
+      as: _ConformanceDescriptor.self
+    )
+
+    let direct = GenericRequirementDescriptor(ptr: UnsafeRawPointer(buffer))
+    let indirect = GenericRequirementDescriptor(ptr: UnsafeRawPointer(buffer + 16))
+    #expect(direct.conformance.ptr == conformanceAddress)
+    #expect(indirect.conformance.ptr == conformanceAddress)
+  }
 }

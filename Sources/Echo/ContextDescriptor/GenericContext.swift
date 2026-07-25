@@ -444,6 +444,17 @@ public struct GenericRequirementDescriptor: LayoutWrapper {
     ).signed
     return ProtocolDescriptor(ptr: ptr!)
   }
+
+  /// If this is a same-conformance requirement, the conformance descriptor
+  /// that the parameter is constrained to use.
+  public var conformance: ConformanceDescriptor {
+    precondition(flags.kind == .sameConformance)
+    let field = address(for: \._requirement)
+    let reference = RelativeIndirectablePointer<_ConformanceDescriptor>(
+      offset: layout._requirement
+    )
+    return ConformanceDescriptor(ptr: reference.address(from: field))
+  }
   
   /// If this requirement is some layout (currently can only be a class),
   /// this is the kind of layout that's being constrained.
@@ -572,7 +583,7 @@ struct _GenericRequirementDescriptor {
   // that this parameter is constrained to. It is represented by the following:
   // 1. Same type requirement (RelativeDirectPointer<CChar>)
   // 2. Protocol requirement (RelativeIndirectablePointerIntPair<ProtocolDescriptor, Bool>)
-  // 3. Conformance requirement (RelativeIndirectablePointer<ProtocolConformanceRecord>)
+  // 3. Conformance requirement (RelativeIndirectablePointer<ConformanceDescriptor>)
   // 4. Layout requirement (LayoutKind)
   let _requirement: Int32
 }
