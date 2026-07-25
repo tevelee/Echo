@@ -482,6 +482,18 @@ public struct TypeContextDescriptorFlags {
   }
 }
 
+/// Extra flags stored in a class descriptor when it has a resilient
+/// superclass.
+public struct ExtraClassDescriptorFlags {
+  /// Flags as represented in bits.
+  public let bits: UInt32
+
+  /// Whether a trailing Objective-C resilient class stub record is present.
+  public var hasObjCResilientClassStub: Bool {
+    bits & 0x1 != 0
+  }
+}
+
 /// A discriminator to determine what kind of initialization this metadata goes
 /// through, if any.
 public enum MetadataInitializationKind: UInt16 {

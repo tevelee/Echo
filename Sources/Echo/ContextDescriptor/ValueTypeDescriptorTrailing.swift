@@ -64,6 +64,7 @@ struct ValueTypeDescriptorTrailingLayout {
     }
 
     if !isGeneric && typeFlags.hasCanonicalMetadataPrespecializationsOrSingletonMetadataPointer {
+      cursor = Self.aligned(cursor, to: MemoryLayout<RelativeDirectPointer<Void>>.alignment)
       singletonMetadata = cursor
     }
 
@@ -74,5 +75,9 @@ struct ValueTypeDescriptorTrailingLayout {
     self.canonicalMetadataCachingToken = canonicalMetadataCachingToken
     self.invertedProtocols = invertedProtocols
     self.singletonMetadata = singletonMetadata
+  }
+
+  private static func aligned(_ value: Int, to alignment: Int) -> Int {
+    (value + alignment - 1) & -alignment
   }
 }

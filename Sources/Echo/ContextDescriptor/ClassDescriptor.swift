@@ -100,152 +100,289 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
   /// A pointer to the resilient superclass. This pointer differs in type
   /// depending on what typeFlags.resilientSuperclassRefKind returns.
   public var resilientSuperclass: UnsafeRawPointer? {
-    guard typeFlags.classHasResilientSuperclass else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
-    return (trailing + offset).relativeDirectAddress(as: Void.self)
+    guard let offset = trailingLayout.resilientSuperclass else { return nil }
+    let field = trailing + offset
+    let reference = field.load(as: RelativeDirectPointer<Void>.self)
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
   }
   
   /// The foreign metadata initialization info for this class metadata, if it
   /// has any.
   public var foreignMetadataInitialization: ForeignMetadataInitialization? {
-    guard typeFlags.metadataInitKind == .foreign else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
-    if typeFlags.classHasResilientSuperclass {
-      offset += MemoryLayout<RelativeDirectPointer<Void>>.size
-    }
-    
+    guard let offset = trailingLayout.foreignMetadataInitialization else { return nil }
     return ForeignMetadataInitialization(ptr: trailing + offset)
   }
   
   /// The singleton metadata initialization info for this class metadata, if it
   /// has any.
   public var singletonMetadataInitialization: SingletonMetadataInitialization? {
-    guard typeFlags.metadataInitKind == .singleton else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
-    if typeFlags.classHasResilientSuperclass {
-      offset += MemoryLayout<RelativeDirectPointer<Void>>.size
-    }
-    
+    guard let offset = trailingLayout.singletonMetadataInitialization else { return nil }
     return SingletonMetadataInitialization(ptr: trailing + offset)
   }
   
   /// The VTable header information for this class, if it has a vtable.
   public var vtableHeader: VTableDescriptorHeader? {
-    guard typeFlags.classHasVTable else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
-    if typeFlags.classHasResilientSuperclass {
-      offset += MemoryLayout<RelativeDirectPointer<Void>>.size
-    }
-    
-    if typeFlags.metadataInitKind == .foreign {
-      offset += MemoryLayout<_ForeignMetadataInitialization>.size
-    }
-    
-    if typeFlags.metadataInitKind == .singleton {
-      offset += MemoryLayout<_SingletonMetadataInitialization>.size
-    }
-    
+    guard let offset = trailingLayout.vtableHeader else { return nil }
     return VTableDescriptorHeader(ptr: trailing + offset)
   }
   
   /// An array of all of the method descriptors for this class for the entries
   /// in the vtable, if this class has a vtable.
   public var methodDescriptors: [MethodDescriptor] {
-    guard typeFlags.classHasVTable else {
-      return []
-    }
-    
-    return Array(unsafeUninitializedCapacity: vtableHeader!.size) {
-      let start = vtableHeader!.trailing
-      
-      for i in 0 ..< vtableHeader!.size {
-        let address = start.offset(of: i, as: _MethodDescriptor.self)
-        $0[i] = MethodDescriptor(ptr: address)
+    guard let offset = trailingLayout.methodDescriptors else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.numMethodDescriptors) {
+      for i in 0 ..< trailingLayout.numMethodDescriptors {
+        $0[i] = MethodDescriptor(
+          ptr: (trailing + offset).advanced(
+            by: i * MemoryLayout<_MethodDescriptor>.stride
+          )
+        )
       }
-      
-      $1 = vtableHeader!.size
+      $1 = trailingLayout.numMethodDescriptors
     }
   }
   
   /// The override table header indicating how many method overrides there are
   /// for this class, if it has an override table.
   public var overrideTableHeader: OverrideTableHeader? {
-    guard typeFlags.classHasOverrideTable else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
-    if typeFlags.metadataInitKind == .foreign {
-      offset += MemoryLayout<_ForeignMetadataInitialization>.size
-    }
-    
-    if typeFlags.metadataInitKind == .singleton {
-      offset += MemoryLayout<_SingletonMetadataInitialization>.size
-    }
-    
-    if typeFlags.classHasVTable {
-      offset += MemoryLayout<_VTableDescriptorHeader>.size
-      
-      offset += MemoryLayout<_MethodDescriptor>.size * vtableHeader!.size
-    }
-    
+    guard let offset = trailingLayout.overrideTableHeader else { return nil }
     return OverrideTableHeader(ptr: trailing + offset)
   }
   
   /// An array of all of the method override descriptors, if this class has an
   /// override table.
   public var methodOverrideDescriptors: [MethodOverrideDescriptor] {
-    guard typeFlags.classHasOverrideTable else {
-      return []
-    }
-    
-    return Array(unsafeUninitializedCapacity: overrideTableHeader!.numEntries) {
-      let start = overrideTableHeader!.trailing
-      
-      for i in 0 ..< overrideTableHeader!.numEntries {
-        let address = start.offset(of: i, as: _MethodOverrideDescriptor.self)
-        $0[i] = MethodOverrideDescriptor(ptr: address)
+    guard let offset = trailingLayout.methodOverrideDescriptors else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.numMethodOverrideDescriptors) {
+      for i in 0 ..< trailingLayout.numMethodOverrideDescriptors {
+        $0[i] = MethodOverrideDescriptor(
+          ptr: (trailing + offset).advanced(
+            by: i * MemoryLayout<_MethodOverrideDescriptor>.stride
+          )
+        )
       }
-      
-      $1 = overrideTableHeader!.numEntries
+      $1 = trailingLayout.numMethodOverrideDescriptors
     }
+  }
+
+  /// Extra class flags stored when this class has a resilient superclass.
+  public var extraClassFlags: ExtraClassDescriptorFlags? {
+    guard typeFlags.classHasResilientSuperclass else { return nil }
+    return ExtraClassDescriptorFlags(bits: layout._positiveSizeOrExtraFlags)
+  }
+
+  /// The Objective-C resilient class stub, if this descriptor records one.
+  public var objcResilientClassStub: UnsafeRawPointer? {
+    guard let offset = trailingLayout.objcResilientClassStub else { return nil }
+    let field = trailing + offset
+    let reference = field.load(as: RelativeDirectPointer<Void>.self)
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// Canonical metadata specializations emitted for this generic class.
+  public var canonicalMetadataPrespecializations: [Metadata] {
+    guard let offset = trailingLayout.canonicalMetadataList else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.canonicalMetadataCount) {
+      for index in 0 ..< trailingLayout.canonicalMetadataCount {
+        let field = (trailing + offset).advanced(
+          by: index * MemoryLayout<RelativeDirectPointer<Void>>.stride
+        )
+        $0[index] = getMetadata(at: field.relativeDirectAddress(as: Void.self))
+      }
+      $1 = trailingLayout.canonicalMetadataCount
+    }
+  }
+
+  /// Accessors corresponding to `canonicalMetadataPrespecializations`.
+  public var canonicalMetadataPrespecializationAccessors: [MetadataAccessFunction] {
+    guard let offset = trailingLayout.canonicalMetadataAccessorList else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.canonicalMetadataCount) {
+      for index in 0 ..< trailingLayout.canonicalMetadataCount {
+        let field = (trailing + offset).advanced(
+          by: index * MemoryLayout<RelativeDirectPointer<Void>>.stride
+        )
+        $0[index] = MetadataAccessFunction(
+          ptr: field.relativeDirectAddress(as: Void.self)
+        )
+      }
+      $1 = trailingLayout.canonicalMetadataCount
+    }
+  }
+
+  /// Capabilities this class's primary definition explicitly inverts.
+  public var invertedProtocols: InvertibleProtocolSet? {
+    guard let offset = trailingLayout.invertedProtocols else { return nil }
+    return InvertibleProtocolSet(bits: (trailing + offset).load(as: UInt16.self))
+  }
+
+  /// The directly stored singleton metadata, when the compiler emitted one.
+  public var singletonMetadata: Metadata? {
+    guard let offset = trailingLayout.singletonMetadata else { return nil }
+    let field = trailing + offset
+    return getMetadata(at: field.relativeDirectAddress(as: Void.self))
+  }
+
+  /// Header for default method overrides inherited by subclasses.
+  public var defaultOverrideTableHeader: DefaultOverrideTableHeader? {
+    guard let offset = trailingLayout.defaultOverrideTableHeader else { return nil }
+    return DefaultOverrideTableHeader(ptr: trailing + offset)
+  }
+
+  /// Default method override records emitted for this class.
+  public var defaultOverrideDescriptors: [MethodDefaultOverrideDescriptor] {
+    guard let offset = trailingLayout.defaultOverrideDescriptors else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.numDefaultOverrideDescriptors) {
+      for index in 0 ..< trailingLayout.numDefaultOverrideDescriptors {
+        $0[index] = MethodDefaultOverrideDescriptor(
+          ptr: (trailing + offset).advanced(
+            by: index * MemoryLayout<_MethodDefaultOverrideDescriptor>.stride
+          )
+        )
+      }
+      $1 = trailingLayout.numDefaultOverrideDescriptors
+    }
+  }
+
+  private var trailingLayout: TrailingLayout {
+    var cursor = flags.isGeneric ? typeGenericContext.size : 0
+    var resilientSuperclass: Int?
+    var foreignMetadataInitialization: Int?
+    var singletonMetadataInitialization: Int?
+    var vtableHeader: Int?
+    var methodDescriptors: Int?
+    var numMethodDescriptors = 0
+    var overrideTableHeader: Int?
+    var methodOverrideDescriptors: Int?
+    var numMethodOverrideDescriptors = 0
+    var objcResilientClassStub: Int?
+    var canonicalMetadataList: Int?
+    var canonicalMetadataAccessorList: Int?
+    var canonicalMetadataCount = 0
+    var invertedProtocols: Int?
+    var singletonMetadata: Int?
+    var defaultOverrideTableHeader: Int?
+    var defaultOverrideDescriptors: Int?
+    var numDefaultOverrideDescriptors = 0
+
+    if typeFlags.classHasResilientSuperclass {
+      resilientSuperclass = cursor
+      cursor += MemoryLayout<RelativeDirectPointer<Void>>.stride
+    }
+
+    switch typeFlags.metadataInitKind {
+    case .foreign:
+      foreignMetadataInitialization = cursor
+      cursor += MemoryLayout<_ForeignMetadataInitialization>.stride
+    case .singleton:
+      singletonMetadataInitialization = cursor
+      cursor += MemoryLayout<_SingletonMetadataInitialization>.stride
+    case .none:
+      break
+    }
+
+    if typeFlags.classHasVTable {
+      vtableHeader = cursor
+      numMethodDescriptors = Int(
+        (trailing + cursor).load(as: _VTableDescriptorHeader.self)._size
+      )
+      cursor += MemoryLayout<_VTableDescriptorHeader>.stride
+      methodDescriptors = cursor
+      cursor += numMethodDescriptors * MemoryLayout<_MethodDescriptor>.stride
+    }
+
+    if typeFlags.classHasOverrideTable {
+      overrideTableHeader = cursor
+      numMethodOverrideDescriptors = Int(
+        (trailing + cursor).load(as: _OverrideTableHeader.self)._numEntries
+      )
+      cursor += MemoryLayout<_OverrideTableHeader>.stride
+      methodOverrideDescriptors = cursor
+      cursor += numMethodOverrideDescriptors * MemoryLayout<_MethodOverrideDescriptor>.stride
+    }
+
+    if extraClassFlags?.hasObjCResilientClassStub == true {
+      objcResilientClassStub = cursor
+      cursor += MemoryLayout<RelativeDirectPointer<Void>>.stride
+    }
+
+    if flags.isGeneric && typeFlags.hasCanonicalMetadataPrespecializationsOrSingletonMetadataPointer {
+      canonicalMetadataCount = Int((trailing + cursor).load(as: UInt32.self))
+      cursor += MemoryLayout<UInt32>.stride
+      canonicalMetadataList = cursor
+      cursor += canonicalMetadataCount * MemoryLayout<RelativeDirectPointer<Void>>.stride
+      canonicalMetadataAccessorList = cursor
+      cursor += canonicalMetadataCount * MemoryLayout<RelativeDirectPointer<Void>>.stride
+      cursor += MemoryLayout<RelativeDirectPointer<Void>>.stride
+    }
+
+    if flags.hasInvertibleProtocols {
+      invertedProtocols = cursor
+      cursor += MemoryLayout<UInt16>.stride
+    }
+
+    if !flags.isGeneric && typeFlags.hasCanonicalMetadataPrespecializationsOrSingletonMetadataPointer {
+      cursor = Self.aligned(cursor, to: MemoryLayout<RelativeDirectPointer<Void>>.alignment)
+      singletonMetadata = cursor
+      cursor += MemoryLayout<RelativeDirectPointer<Void>>.stride
+    }
+
+    if typeFlags.classHasDefaultOverrideTable {
+      cursor = Self.aligned(cursor, to: MemoryLayout<_DefaultOverrideTableHeader>.alignment)
+      defaultOverrideTableHeader = cursor
+      numDefaultOverrideDescriptors = Int(
+        (trailing + cursor).load(as: _DefaultOverrideTableHeader.self)._numEntries
+      )
+      cursor += MemoryLayout<_DefaultOverrideTableHeader>.stride
+      defaultOverrideDescriptors = cursor
+    }
+
+    return TrailingLayout(
+      resilientSuperclass: resilientSuperclass,
+      foreignMetadataInitialization: foreignMetadataInitialization,
+      singletonMetadataInitialization: singletonMetadataInitialization,
+      vtableHeader: vtableHeader,
+      methodDescriptors: methodDescriptors,
+      numMethodDescriptors: numMethodDescriptors,
+      overrideTableHeader: overrideTableHeader,
+      methodOverrideDescriptors: methodOverrideDescriptors,
+      numMethodOverrideDescriptors: numMethodOverrideDescriptors,
+      objcResilientClassStub: objcResilientClassStub,
+      canonicalMetadataList: canonicalMetadataList,
+      canonicalMetadataAccessorList: canonicalMetadataAccessorList,
+      canonicalMetadataCount: canonicalMetadataCount,
+      invertedProtocols: invertedProtocols,
+      singletonMetadata: singletonMetadata,
+      defaultOverrideTableHeader: defaultOverrideTableHeader,
+      defaultOverrideDescriptors: defaultOverrideDescriptors,
+      numDefaultOverrideDescriptors: numDefaultOverrideDescriptors
+    )
+  }
+
+  private static func aligned(_ value: Int, to alignment: Int) -> Int {
+    (value + alignment - 1) & -alignment
+  }
+
+  private struct TrailingLayout {
+    let resilientSuperclass: Int?
+    let foreignMetadataInitialization: Int?
+    let singletonMetadataInitialization: Int?
+    let vtableHeader: Int?
+    let methodDescriptors: Int?
+    let numMethodDescriptors: Int
+    let overrideTableHeader: Int?
+    let methodOverrideDescriptors: Int?
+    let numMethodOverrideDescriptors: Int
+    let objcResilientClassStub: Int?
+    let canonicalMetadataList: Int?
+    let canonicalMetadataAccessorList: Int?
+    let canonicalMetadataCount: Int
+    let invertedProtocols: Int?
+    let singletonMetadata: Int?
+    let defaultOverrideTableHeader: Int?
+    let defaultOverrideDescriptors: Int?
+    let numDefaultOverrideDescriptors: Int
   }
   
   // Internal methods related to Metadata bounds and argument offsets.
@@ -457,6 +594,51 @@ public struct MethodOverrideDescriptor: LayoutWrapper {
   }
 }
 
+/// Header for a table of default method override records.
+public struct DefaultOverrideTableHeader: LayoutWrapper {
+  typealias Layout = _DefaultOverrideTableHeader
+
+  let ptr: UnsafeRawPointer
+
+  /// The number of default override records in the table.
+  public var numEntries: Int {
+    Int(layout._numEntries)
+  }
+}
+
+/// A default method override inherited by subclasses that do not provide an
+/// implementation of their own.
+public struct MethodDefaultOverrideDescriptor: LayoutWrapper {
+  typealias Layout = _MethodDefaultOverrideDescriptor
+
+  let ptr: UnsafeRawPointer
+
+  /// The method selected at replacement call sites.
+  public var replacement: MethodDescriptor? {
+    let field = address(for: \._replacement)
+    let reference = layout._replacement
+    guard reference.isNull == false else { return nil }
+    return MethodDescriptor(ptr: reference.address(from: field))
+  }
+
+  /// The method originally selected at those call sites.
+  public var original: MethodDescriptor? {
+    let field = address(for: \._original)
+    let reference = layout._original
+    guard reference.isNull == false else { return nil }
+    return MethodDescriptor(ptr: reference.address(from: field))
+  }
+
+  /// The opaque replacement implementation pointer. It must not be invoked
+  /// directly.
+  public var implementation: UnsafeRawPointer? {
+    let field = address(for: \._implementation)
+    let reference = layout._implementation
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+}
+
 /// Bounds for metadata objects.
 public struct MetadataBounds {
   var _negativeSize: UInt32
@@ -526,4 +708,14 @@ struct _MethodOverrideDescriptor {
   let _class: RelativeIndirectablePointer<_ContextDescriptor>
   let _method: RelativeIndirectablePointer<_MethodDescriptor>
   let _impl: RelativeDirectPointer<Void>
+}
+
+struct _DefaultOverrideTableHeader {
+  let _numEntries: UInt32
+}
+
+struct _MethodDefaultOverrideDescriptor {
+  let _replacement: RelativeIndirectablePointer<_MethodDescriptor>
+  let _original: RelativeIndirectablePointer<_MethodDescriptor>
+  let _implementation: RelativeDirectPointer<Void>
 }
