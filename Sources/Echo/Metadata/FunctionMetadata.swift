@@ -78,6 +78,138 @@ public struct FunctionMetadata: Metadata, LayoutWrapper {
   }
 }
 
+extension FunctionMetadata {
+  // Conditional trailing fields follow the parameter array in this ABI order:
+  // parameter flags, differentiability kind, global actor, extended flags,
+  // and typed-throws error metadata. Each starts at its natural alignment.
+  private func trailingFieldOffsets() -> (
+    globalActor: Int?, extendedFlags: Int?, thrownError: Int?
+  ) {
+    let pointerSize = MemoryLayout<UnsafeRawPointer>.size
+    let uint32Size = MemoryLayout<UInt32>.size
+
+    func aligned(_ offset: Int, to alignment: Int) -> Int {
+      (offset + alignment - 1) & ~(alignment - 1)
+    }
+
+    var offset = flags.numParams * pointerSize
+
+    if flags.hasParamFlags {
+      offset += flags.numParams * uint32Size
+    }
+
+    if flags.isDifferentiable {
+      offset = aligned(offset, to: pointerSize)
+      offset += pointerSize
+    }
+
+    var globalActor: Int?
+    if flags.hasGlobalActor {
+      offset = aligned(offset, to: pointerSize)
+      globalActor = offset
+      offset += pointerSize
+    }
+
+    var extendedFlags: Int?
+    if flags.hasExtendedFlags {
+      offset = aligned(offset, to: uint32Size)
+      extendedFlags = offset
+      offset += uint32Size
+    }
+
+    var thrownError: Int?
+    if let extendedFlags,
+       trailing.load(
+        fromByteOffset: extendedFlags,
+        as: ExtendedFunctionTypeFlags.self
+       ).isTypedThrows {
+      offset = aligned(offset, to: pointerSize)
+      thrownError = offset
+    }
+
+    return (globalActor, extendedFlags, thrownError)
+  }
+
+  /// The global actor to which this function type is isolated, if any.
+  public var globalActorType: Any.Type? {
+    guard let offset = trailingFieldOffsets().globalActor else {
+      return nil
+    }
+
+    return trailing.load(fromByteOffset: offset, as: Any.Type.self)
+  }
+
+  /// The extended function-type flags, if the metadata carries them.
+  public var extendedFlags: ExtendedFunctionTypeFlags? {
+    guard let offset = trailingFieldOffsets().extendedFlags else {
+      return nil
+    }
+
+    return trailing.load(fromByteOffset: offset, as: ExtendedFunctionTypeFlags.self)
+  }
+
+  /// The error type of a typed-throws function, if any.
+  public var thrownErrorType: Any.Type? {
+    guard let offset = trailingFieldOffsets().thrownError else {
+      return nil
+    }
+
+    return trailing.load(fromByteOffset: offset, as: Any.Type.self)
+  }
+}
+
+/// Extended flags carried by some function types beyond `FunctionMetadata.Flags`.
+public struct ExtendedFunctionTypeFlags {
+  /// Flags as represented in bits.
+  public let bits: UInt32
+
+  /// Whether this function uses typed throws (`throws(E)`).
+  public var isTypedThrows: Bool {
+    bits & 0x1 != 0
+  }
+
+  /// Whether this function uses `@isolated(any)` isolation.
+  public var isIsolatedAny: Bool {
+    bits & 0xE == 0x2
+  }
+
+  /// Whether this function uses `nonisolated(nonsending)` isolation.
+  public var isNonIsolatedNonsending: Bool {
+    bits & 0xE == 0x4
+  }
+
+  /// Whether this function has a `sending` result.
+  public var hasSendingResult: Bool {
+    bits & 0x10 != 0
+  }
+
+  /// The invertible protocol requirements that are inverted for this function.
+  public var invertedProtocols: InvertibleProtocolSet {
+    InvertibleProtocolSet(bits: UInt16(truncatingIfNeeded: bits >> 16))
+  }
+}
+
+/// A set of invertible protocol requirements carried by a function type.
+public struct InvertibleProtocolSet {
+  /// Flags as represented in bits.
+  public let bits: UInt16
+
+  /// Whether `Copyable` is inverted, permitting `~Copyable` values.
+  public var invertsCopyable: Bool {
+    bits & (1 << 0) != 0
+  }
+
+  /// Whether `Escapable` is inverted, permitting `~Escapable` values.
+  public var invertsEscapable: Bool {
+    bits & (1 << 1) != 0
+  }
+
+  /// Whether no invertible protocol requirement is inverted.
+  public var isEmpty: Bool {
+    bits == 0
+  }
+}
+
 extension FunctionMetadata: Equatable {}
 
 struct _FunctionMetadata {

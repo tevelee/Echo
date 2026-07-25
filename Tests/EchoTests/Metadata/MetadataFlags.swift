@@ -10,6 +10,10 @@ class FlagPlainClass {
   var x = 0
 }
 
+enum FlagThrownError: Error {
+  case boom
+}
+
 enum MetadataFlagsTests {
   static func testValueWitnessCopyability() {
     let intFlags = reflect(Int.self).vwt.flags
@@ -60,5 +64,33 @@ extension EchoTests {
     MetadataFlagsTests.testValueWitnessCopyability()
     MetadataFlagsTests.testFunctionFlags()
     MetadataFlagsTests.testActorFlags()
+  }
+
+  @Test
+  func functionTrailingMetadata() throws {
+    let plain = try #require(reflect((() -> Void).self) as? FunctionMetadata)
+    #expect(plain.globalActorType == nil)
+    #expect(plain.extendedFlags == nil)
+    #expect(plain.thrownErrorType == nil)
+
+    let mainActorFunction = try #require(
+      reflect((@MainActor () -> Void).self) as? FunctionMetadata
+    )
+    #expect(mainActorFunction.flags.hasGlobalActor)
+    #expect(typesEqual(mainActorFunction.globalActorType, MainActor.self))
+
+    if #available(macOS 15, iOS 18, tvOS 18, watchOS 11, *) {
+      let typedThrows = try #require(
+        reflect((() throws(FlagThrownError) -> Void).self) as? FunctionMetadata
+      )
+      #expect(typedThrows.flags.hasExtendedFlags)
+
+      let extended = try #require(typedThrows.extendedFlags)
+      #expect(extended.isTypedThrows)
+      #expect(extended.invertedProtocols.isEmpty)
+      #expect(extended.invertedProtocols.invertsCopyable == false)
+      #expect(extended.invertedProtocols.invertsEscapable == false)
+      #expect(typesEqual(typedThrows.thrownErrorType, FlagThrownError.self))
+    }
   }
 }
