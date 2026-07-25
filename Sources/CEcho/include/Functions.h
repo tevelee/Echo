@@ -12,6 +12,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "CallAccessor.h"
+
 //===----------------------------------------------------------------------===//
 // Pointer Authentication
 //===----------------------------------------------------------------------===//
@@ -79,6 +81,14 @@ extern void *swift_weakLoadStrong(void *weakRef);
 // WitnessTable *swift_conformsToProtocol(Metadata *type,
 //                                        ProtocolDescriptor *protocol);
 extern void *swift_conformsToProtocol(const void *type, const void *protocol);
+
+// MetadataResponse swift_getAssociatedTypeWitness(
+//   MetadataRequest request, WitnessTable *witnessTable,
+//   Metadata *conformingType, ProtocolRequirement *requirementBase,
+//   ProtocolRequirement *associatedTypeRequirement);
+MetadataResponse echo_swift_getAssociatedTypeWitness(
+    size_t request, const void *witnessTable, const void *conformingType,
+    const void *requirementBase, const void *associatedTypeRequirement);
 
 //===----------------------------------------------------------------------===//
 // Casting

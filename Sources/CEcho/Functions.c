@@ -30,6 +30,12 @@ swift_allocBox(const void *type);
 extern __attribute__((swiftcall)) SwiftRuntimeBoxPair
 swift_makeBoxUnique(void *buffer, const void *type, size_t alignMask);
 
+extern __attribute__((swiftcall)) MetadataResponse
+swift_getAssociatedTypeWitness(size_t request, const void *witnessTable,
+                               const void *conformingType,
+                               const void *requirementBase,
+                               const void *associatedTypeRequirement);
+
 EchoBoxPair echo_swift_allocBox(const void *type) {
   SwiftRuntimeBoxPair pair = swift_allocBox(type);
   return (EchoBoxPair){pair.heapObj, pair.buffer};
@@ -39,6 +45,14 @@ EchoBoxPair echo_swift_makeBoxUnique(void *buffer, const void *type,
                                      size_t alignMask) {
   SwiftRuntimeBoxPair pair = swift_makeBoxUnique(buffer, type, alignMask);
   return (EchoBoxPair){pair.heapObj, pair.buffer};
+}
+
+MetadataResponse echo_swift_getAssociatedTypeWitness(
+    size_t request, const void *witnessTable, const void *conformingType,
+    const void *requirementBase, const void *associatedTypeRequirement) {
+  return swift_getAssociatedTypeWitness(request, witnessTable, conformingType,
+                                        requirementBase,
+                                        associatedTypeRequirement);
 }
 
 #if defined(__arm64e__)
