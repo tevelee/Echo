@@ -227,6 +227,44 @@ public struct InvertibleProtocolSet {
   public var isEmpty: Bool {
     bits == 0
   }
+
+  /// The capability protocols currently known to the Swift ABI.
+  public var knownProtocols: [InvertibleProtocolKind] {
+    InvertibleProtocolKind.allCases.filter(contains)
+  }
+
+  /// Bits reserved for capability protocols introduced by newer Swift
+  /// runtimes.
+  public var unknownBits: UInt16 {
+    bits & ~InvertibleProtocolKind.knownMask
+  }
+
+  /// Whether this set contains an invertible protocol Echo does not know.
+  ///
+  /// Callers that need to make a semantic decision should treat this as a
+  /// fail-closed condition rather than assuming the known protocols are the
+  /// complete set.
+  public var hasUnknownProtocols: Bool {
+    unknownBits != 0
+  }
+
+  /// Whether this set contains a particular capability protocol.
+  public func contains(_ protocol: InvertibleProtocolKind) -> Bool {
+    bits & (1 << `protocol`.rawValue) != 0
+  }
+}
+
+/// A capability protocol that Swift permits generic signatures to invert.
+public enum InvertibleProtocolKind: UInt8, CaseIterable, Sendable {
+  /// The capability represented by `Copyable` / `~Copyable`.
+  case copyable = 0
+
+  /// The capability represented by `Escapable` / `~Escapable`.
+  case escapable = 1
+
+  fileprivate static let knownMask: UInt16 =
+    (1 << InvertibleProtocolKind.copyable.rawValue)
+      | (1 << InvertibleProtocolKind.escapable.rawValue)
 }
 
 extension FunctionMetadata: Equatable {}

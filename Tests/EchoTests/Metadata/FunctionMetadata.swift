@@ -73,4 +73,18 @@ extension EchoTests {
     #expect(parameter.isSending)
     #expect(metadata.differentiabilityKind == .reverse)
   }
+
+  @Test
+  func invertibleProtocolSetsExposeKnownAndUnknownCapabilities() {
+    let known = InvertibleProtocolSet(bits: 0x3)
+    #expect(known.knownProtocols == [.copyable, .escapable])
+    #expect(known.contains(.copyable))
+    #expect(known.contains(.escapable))
+    #expect(known.hasUnknownProtocols == false)
+
+    let future = InvertibleProtocolSet(bits: 0x5)
+    #expect(future.knownProtocols == [.copyable])
+    #expect(future.unknownBits == 0x4)
+    #expect(future.hasUnknownProtocols)
+  }
 }
