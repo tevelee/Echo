@@ -23,6 +23,119 @@ import CEcho
 ///
 public protocol TypeMetadata: Metadata {}
 
+/// The allocation lifetime encoded in a runtime metadata or witness-table
+/// pack pointer.
+///
+/// Stack-backed packs have no count stored with their element pointer. They
+/// are intentionally not enumerated by Echo because the compiler owns the
+/// corresponding pack-length argument and its storage lifetime.
+public enum PackLifetime: Equatable, Sendable {
+  /// The pack elements belong to the caller's stack frame.
+  case onStack
+
+  /// The pack owns a heap allocation whose preceding word stores its count.
+  case onHeap
+}
+
+/// A runtime pack of type metadata used by variadic generic expansions.
+///
+/// The Swift ABI uses the low bit of `taggedPointer` to distinguish
+/// heap-backed packs from packs borrowed from the stack. Only heap-backed
+/// packs can be enumerated: their element count is stored one word before the
+/// element pointer.
+public struct MetadataPack {
+  /// The ABI pointer including its low-bit lifetime tag.
+  public let taggedPointer: UnsafeRawPointer
+
+  /// Creates a pack view for an ABI pointer from a generic argument layout.
+  public init(taggedPointer: UnsafeRawPointer) {
+    self.taggedPointer = taggedPointer
+  }
+
+  /// Whether the elements are backed by the stack or a heap allocation.
+  public var lifetime: PackLifetime {
+    UInt(bitPattern: taggedPointer) & 1 == 0 ? .onStack : .onHeap
+  }
+
+  /// The untagged address of the first metadata element.
+  public var elementsPointer: UnsafeRawPointer {
+    UnsafeRawPointer(bitPattern: UInt(bitPattern: taggedPointer) & ~UInt(1))!
+  }
+
+  /// The number of elements when the runtime allocated the pack on the heap.
+  ///
+  /// Stack-backed packs do not carry their count and return `nil`.
+  public var count: Int? {
+    guard lifetime == .onHeap else { return nil }
+    let rawCount = elementsPointer.offset(of: -1).load(as: UInt.self)
+    return Int(exactly: rawCount)
+  }
+
+  /// Metadata for every element of a heap-backed pack.
+  ///
+  /// Stack-backed packs return an empty array rather than reading a count from
+  /// memory the ABI deliberately leaves unspecified.
+  public var elements: [Metadata] {
+    guard let count else { return [] }
+
+    return (0 ..< count).map { index in
+      let pointer = elementsPointer.load(
+        fromByteOffset: index * MemoryLayout<UnsafeRawPointer>.stride,
+        as: UnsafeRawPointer.self
+      )
+      return getMetadata(at: pointer)
+    }
+  }
+}
+
+/// A runtime pack of protocol witness tables used by variadic generic
+/// expansions.
+///
+/// As with `MetadataPack`, only heap-backed packs can be safely enumerated.
+public struct WitnessTablePack {
+  /// The ABI pointer including its low-bit lifetime tag.
+  public let taggedPointer: UnsafeRawPointer
+
+  /// Creates a pack view for an ABI pointer from a generic argument layout.
+  public init(taggedPointer: UnsafeRawPointer) {
+    self.taggedPointer = taggedPointer
+  }
+
+  /// Whether the elements are backed by the stack or a heap allocation.
+  public var lifetime: PackLifetime {
+    UInt(bitPattern: taggedPointer) & 1 == 0 ? .onStack : .onHeap
+  }
+
+  /// The untagged address of the first witness-table element.
+  public var elementsPointer: UnsafeRawPointer {
+    UnsafeRawPointer(bitPattern: UInt(bitPattern: taggedPointer) & ~UInt(1))!
+  }
+
+  /// The number of elements when the runtime allocated the pack on the heap.
+  ///
+  /// Stack-backed packs do not carry their count and return `nil`.
+  public var count: Int? {
+    guard lifetime == .onHeap else { return nil }
+    let rawCount = elementsPointer.offset(of: -1).load(as: UInt.self)
+    return Int(exactly: rawCount)
+  }
+
+  /// Witness tables for every element of a heap-backed pack.
+  ///
+  /// Stack-backed packs return an empty array rather than reading a count from
+  /// memory the ABI deliberately leaves unspecified.
+  public var elements: [WitnessTable] {
+    guard let count else { return [] }
+
+    return (0 ..< count).map { index in
+      WitnessTable(ptr: elementsPointer.load(
+        fromByteOffset: index * MemoryLayout<UnsafeRawPointer>.stride,
+        as: UnsafeRawPointer.self
+      ))
+    }
+  }
+}
+
 /// One word in a generic metadata argument layout.
 ///
 /// Swift 6 generic layouts can contain packs and value arguments in addition
@@ -61,6 +174,18 @@ public enum GenericArgument {
     case let .value(value):
       return value
     }
+  }
+
+  /// A typed view of this metadata-pack argument, if it is one.
+  public var metadataPackValue: MetadataPack? {
+    guard case let .metadataPack(pointer) = self else { return nil }
+    return MetadataPack(taggedPointer: pointer)
+  }
+
+  /// A typed view of this witness-table-pack argument, if it is one.
+  public var witnessTablePackValue: WitnessTablePack? {
+    guard case let .witnessTablePack(pointer) = self else { return nil }
+    return WitnessTablePack(taggedPointer: pointer)
   }
 }
 
