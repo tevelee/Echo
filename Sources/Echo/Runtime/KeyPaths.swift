@@ -276,3 +276,154 @@ struct _KeyPathObject {
   let _bufferHeader: KeyPathBufferHeader
 }
 */
+
+/// The 32-bit header at the start of a Swift key-path component.
+///
+/// This decoder intentionally stops at the header. The trailing payload of a
+/// component is representation-specific and may contain runtime-private
+/// function pointers, substitutions, or captures.
+public struct KeyPathComponentHeader: Equatable, Sendable {
+  /// Raw ABI header bits.
+  public let bits: UInt32
+
+  /// Creates a decoder for a component header.
+  public init(bits: UInt32) {
+    self.bits = bits
+  }
+
+  /// The component representation, or `nil` for a future ABI tag.
+  public var kind: Kind? {
+    Kind(rawValue: UInt8((bits & 0x7F00_0000) >> 24))
+  }
+
+  /// Whether this component ends a reference prefix.
+  public var isEndOfReferencePrefix: Bool {
+    bits & 0x8000_0000 != 0
+  }
+
+  /// The low 24-bit component payload.
+  public var payload: UInt32 {
+    bits & 0x00FF_FFFF
+  }
+
+  /// The inline byte offset of a stored-property component, if present.
+  public var storedOffset: UInt32? {
+    guard kind == .struct || kind == .class,
+          storedOffsetKind == .inline
+    else { return nil }
+    return payload & 0x007F_FFFF
+  }
+
+  /// The storage form used by a stored-property component.
+  public var storedOffsetKind: StoredOffsetKind? {
+    guard kind == .struct || kind == .class else { return nil }
+
+    switch payload & 0x007F_FFFF {
+    case 0x007F_FFFD:
+      return .unresolvedIndirect
+    case 0x007F_FFFE:
+      return .unresolvedField
+    case 0x007F_FFFF:
+      return .outOfLine
+    default:
+      return .inline
+    }
+  }
+
+  /// Whether a stored property is mutable (`var`) rather than immutable
+  /// (`let`).
+  public var isStoredPropertyMutable: Bool? {
+    guard kind == .struct || kind == .class else { return nil }
+    return bits & 0x0080_0000 != 0
+  }
+
+  /// The optional operation encoded by this component.
+  public var optionalOperation: OptionalOperation? {
+    guard kind == .optional else { return nil }
+    return OptionalOperation(rawValue: payload)
+  }
+
+  /// The number of substitutions for an external component.
+  public var externalSubstitutionCount: UInt32? {
+    guard kind == .external else { return nil }
+    return payload
+  }
+
+  /// The access form used by a computed component.
+  public var computedPropertyKind: ComputedPropertyKind? {
+    guard kind == .computed else { return nil }
+    guard bits & 0x0040_0000 != 0 else { return .getOnly }
+    return bits & 0x0080_0000 != 0 ? .settableMutating : .settableNonmutating
+  }
+
+  /// The identifier representation used by a computed component.
+  public var computedIdentifierKind: ComputedIdentifierKind? {
+    guard kind == .computed else { return nil }
+    if bits & 0x0010_0000 != 0 { return .vtableOffset }
+    if bits & 0x0020_0000 != 0 { return .storedPropertyIndex }
+    return .pointer
+  }
+
+  /// How the computed component's identifier was resolved.
+  ///
+  /// `resolvedAbsolute` is emitted by modern Swift runtimes for an absolute,
+  /// rather than relative, resolved identifier.
+  public var computedIdentifierResolution: ComputedIdentifierResolution? {
+    guard kind == .computed else { return nil }
+    return ComputedIdentifierResolution(rawValue: UInt8(bits & 0xF))
+  }
+
+  /// Whether the computed component carries captured arguments.
+  public var hasComputedArguments: Bool? {
+    guard kind == .computed else { return nil }
+    return bits & 0x0008_0000 != 0
+  }
+}
+
+extension KeyPathComponentHeader {
+  /// Component representations defined by the Swift key-path ABI.
+  public enum Kind: UInt8, Sendable {
+    case external = 0
+    case `struct` = 1
+    case computed = 2
+    case `class` = 3
+    case optional = 4
+  }
+
+  /// Physical storage forms for a stored-property offset.
+  public enum StoredOffsetKind: Sendable {
+    case inline
+    case unresolvedIndirect
+    case unresolvedField
+    case outOfLine
+  }
+
+  /// Optional operations encoded by optional key-path components.
+  public enum OptionalOperation: UInt32, Sendable {
+    case chain = 0
+    case wrap = 1
+    case force = 2
+  }
+
+  /// Access forms for computed key-path components.
+  public enum ComputedPropertyKind: Sendable {
+    case getOnly
+    case settableNonmutating
+    case settableMutating
+  }
+
+  /// Identifier representations for computed key-path components.
+  public enum ComputedIdentifierKind: Sendable {
+    case pointer
+    case storedPropertyIndex
+    case vtableOffset
+  }
+
+  /// Identifier resolution states for computed key-path components.
+  public enum ComputedIdentifierResolution: UInt8, Sendable {
+    case resolved = 0
+    case functionCall = 1
+    case indirectPointer = 2
+    case resolvedAbsolute = 3
+  }
+}
