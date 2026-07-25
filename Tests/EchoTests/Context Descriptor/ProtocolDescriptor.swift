@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import Echo
+@testable import Echo
 
 protocol ProtocolDescriptorFixture {
   associatedtype Hello
@@ -73,5 +73,29 @@ extension EchoTests {
     #expect(asyncRequirement.flags.isData)
     #expect(asyncRequirement.flags.isSignedWithAddress)
     #expect(asyncRequirement.flags.isFunctionImplementation == false)
+  }
+
+  @Test
+  func protocolRequirementResolvesDefaultImplementation() {
+    let storage = UnsafeMutableRawPointer.allocate(
+      byteCount: 64,
+      alignment: MemoryLayout<_ProtocolRequirement>.alignment
+    )
+    defer { storage.deallocate() }
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 64)
+
+    storage.storeBytes(
+      of: _ProtocolRequirement(
+        _flags: ProtocolRequirement.Flags(bits: 0x1),
+        _defaultImpl: RelativeDirectPointer<()>(offset: 28)
+      ),
+      as: _ProtocolRequirement.self
+    )
+
+    let requirement = ProtocolRequirement(ptr: UnsafeRawPointer(storage))
+    #expect(requirement.defaultImplementation == UnsafeRawPointer(storage).advanced(by: 32))
+
+    storage.storeBytes(of: Int32(0), toByteOffset: 4, as: Int32.self)
+    #expect(requirement.defaultImplementation == nil)
   }
 }

@@ -97,6 +97,17 @@ public struct ProtocolRequirement: LayoutWrapper {
   public var flags: Flags {
     layout._flags
   }
+
+  /// The optional default implementation emitted for this requirement.
+  ///
+  /// Its calling convention depends on `flags`; Echo exposes the address for
+  /// inspection only, and clients must not invoke it.
+  public var defaultImplementation: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_ProtocolRequirement>.offset(of: \._defaultImpl)!
+    let reference = layout._defaultImpl
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
 }
 
 struct _ProtocolDescriptor {
