@@ -14,6 +14,9 @@
 extern void registerProtocols(const char *section, size_t size);
 extern void registerProtocolConformances(const char *section, size_t size);
 extern void registerTypeMetadata(const char *section, size_t size);
+extern void registerDynamicReplacementScopes(const char *section, size_t size);
+extern void registerOpaqueTypeReplacements(const char *section, size_t size);
+extern void registerAccessibleFunctions(const char *section, size_t size);
 
 //===----------------------------------------------------------------------===//
 // Mach-O Image Inspection
@@ -37,6 +40,20 @@ void _loadImageFunc(const struct mach_header *header, intptr_t size) {
   
   lookupSection(header, "__TEXT", "__swift5_types",
                 registerTypeMetadata);
+
+  // Noncopyable type descriptors are intentionally emitted separately so an
+  // older runtime does not expose them as copyable values.
+  lookupSection(header, "__TEXT", "__swift5_types2",
+                registerTypeMetadata);
+
+  lookupSection(header, "__TEXT", "__swift5_replace",
+                registerDynamicReplacementScopes);
+
+  lookupSection(header, "__TEXT", "__swift5_replac2",
+                registerOpaqueTypeReplacements);
+
+  lookupSection(header, "__TEXT", "__swift5_acfuncs",
+                registerAccessibleFunctions);
 }
 
 __attribute((__constructor__))
@@ -75,6 +92,10 @@ extern "C" {
 SWIFT_SECTION(swift5_protocols)
 SWIFT_SECTION(swift5_protocol_conformances)
 SWIFT_SECTION(swift5_type_metadata)
+SWIFT_SECTION(swift5_type_metadata_2)
+SWIFT_SECTION(swift5_replace)
+SWIFT_SECTION(swift5_replac2)
+SWIFT_SECTION(swift5_accessible_functions)
 
 #if defined(__cplusplus)
 } // extern "C"

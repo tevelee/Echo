@@ -116,6 +116,40 @@ static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
       registerTypeMetadata(types, sections[i].sh_size);
       continue;
     }
+
+    // Noncopyable type records are intentionally segregated from the original
+    // runtime type list. Echo understands their descriptor representation.
+    if (!strcmp(sectionName, "swift5_type_metadata_2")) {
+      size_t sectionAddr = sections[i].sh_addr;
+      const void *types = (const void *)(info->dlpi_addr + sectionAddr);
+
+      registerTypeMetadata(types, sections[i].sh_size);
+      continue;
+    }
+
+    if (!strcmp(sectionName, "swift5_replace")) {
+      size_t sectionAddr = sections[i].sh_addr;
+      const void *replacements = (const void *)(info->dlpi_addr + sectionAddr);
+
+      registerDynamicReplacementScopes(replacements, sections[i].sh_size);
+      continue;
+    }
+
+    if (!strcmp(sectionName, "swift5_replac2")) {
+      size_t sectionAddr = sections[i].sh_addr;
+      const void *replacements = (const void *)(info->dlpi_addr + sectionAddr);
+
+      registerOpaqueTypeReplacements(replacements, sections[i].sh_size);
+      continue;
+    }
+
+    if (!strcmp(sectionName, "swift5_accessible_functions")) {
+      size_t sectionAddr = sections[i].sh_addr;
+      const void *functions = (const void *)(info->dlpi_addr + sectionAddr);
+
+      registerAccessibleFunctions(functions, sections[i].sh_size);
+      continue;
+    }
   }
   
   // And finally, free the memory we allocated for our shared object :)
@@ -143,6 +177,15 @@ static void loadImages(void) {
   
   // This will register the executable's type metadata list.
   SWIFT_REGISTER_SECTION(swift5_type_metadata, registerTypeMetadata)
+
+  // Register the separate noncopyable type list after the original list so it
+  // receives the same descriptor decoding without being exposed to an older
+  // Swift runtime.
+  SWIFT_REGISTER_SECTION(swift5_type_metadata_2, registerTypeMetadata)
+
+  SWIFT_REGISTER_SECTION(swift5_replace, registerDynamicReplacementScopes)
+  SWIFT_REGISTER_SECTION(swift5_replac2, registerOpaqueTypeReplacements)
+  SWIFT_REGISTER_SECTION(swift5_accessible_functions, registerAccessibleFunctions)
 }
 
 #undef SWIFT_REGISTER_SECTION

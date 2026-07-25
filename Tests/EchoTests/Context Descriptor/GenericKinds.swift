@@ -66,6 +66,15 @@ extension EchoTests {
     let noncopyableType = try #require(reflectStruct(NoncopyableContextFixture.self))
     #expect(noncopyableType.descriptor.flags.hasInvertibleProtocols)
     #expect(noncopyableType.descriptor.invertedProtocols?.invertsCopyable == true)
+
+    // Swift 6 emits noncopyable descriptors into the separate types2 image
+    // section. Echo must discover that section without handing it to an older
+    // runtime as if it contained copyable values.
+    #expect(
+      Echo.types.contains {
+        ($0 as? StructDescriptor)?.name == "NoncopyableContextFixture"
+      }
+    )
   }
 
   @Test

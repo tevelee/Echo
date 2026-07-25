@@ -179,6 +179,115 @@ public func registerTypeMetadata(section: UnsafeRawPointer, size: Int) {
 }
 
 //===----------------------------------------------------------------------===//
+// __swift5_replace/swift5_replace
+//===----------------------------------------------------------------------===//
+
+/// Dynamic-replacement scopes registered by the images currently loaded into
+/// this process. The scopes are read-only views; replacement activation remains
+/// the Swift runtime's responsibility.
+public var dynamicReplacementScopes: [DynamicReplacementScope] {
+  refreshLoadedImages()
+
+  return imageInspectionStorage.dynamicReplacementScopes.map {
+    DynamicReplacementScope(ptr: $0)
+  }
+}
+
+@_cdecl("registerDynamicReplacementScopes")
+public func registerDynamicReplacementScopes(section: UnsafeRawPointer, size: Int) {
+  var offset = 0
+
+  while offset <= size - MemoryLayout<_DynamicReplacementScope>.size {
+    let header = section + offset
+    let count = Int(header.load(fromByteOffset: 4, as: UInt32.self))
+    let entriesSize = count.multipliedReportingOverflow(
+      by: MemoryLayout<_AutomaticDynamicReplacementEntry>.stride
+    )
+
+    guard entriesSize.overflow == false else { return }
+    let recordSize = MemoryLayout<_DynamicReplacementScope>.size + entriesSize.partialValue
+    guard recordSize <= size - offset else { return }
+
+    let entries = header + MemoryLayout<_DynamicReplacementScope>.size
+    for index in 0 ..< count {
+      let field = entries.advanced(
+        by: index * MemoryLayout<_AutomaticDynamicReplacementEntry>.stride
+      )
+      let reference = field.load(as: RelativeDirectPointer<_DynamicReplacementScope>.self)
+      guard reference.isNull == false else { continue }
+      imageInspectionStorage.insertDynamicReplacementScope(reference.address(from: field))
+    }
+
+    offset += recordSize
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// __swift5_replac2/swift5_replac2
+//===----------------------------------------------------------------------===//
+
+/// Opaque-type (`some`) descriptor replacements registered by loaded images.
+public var opaqueTypeReplacements: [OpaqueTypeReplacement] {
+  refreshLoadedImages()
+
+  return imageInspectionStorage.opaqueTypeReplacements.map {
+    OpaqueTypeReplacement(ptr: $0)
+  }
+}
+
+@_cdecl("registerOpaqueTypeReplacements")
+public func registerOpaqueTypeReplacements(section: UnsafeRawPointer, size: Int) {
+  var offset = 0
+
+  while offset <= size - MemoryLayout<_AutomaticOpaqueTypeReplacement>.size {
+    let header = section + offset
+    let count = Int(header.load(fromByteOffset: 4, as: UInt32.self))
+    let entriesSize = count.multipliedReportingOverflow(
+      by: MemoryLayout<_OpaqueTypeReplacement>.stride
+    )
+
+    guard entriesSize.overflow == false else { return }
+    let recordSize = MemoryLayout<_AutomaticOpaqueTypeReplacement>.size
+      + entriesSize.partialValue
+    guard recordSize <= size - offset else { return }
+
+    let entries = header + MemoryLayout<_AutomaticOpaqueTypeReplacement>.size
+    for index in 0 ..< count {
+      imageInspectionStorage.insertOpaqueTypeReplacement(
+        entries.advanced(by: index * MemoryLayout<_OpaqueTypeReplacement>.stride)
+      )
+    }
+
+    offset += recordSize
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// __swift5_acfuncs/swift5_accessible_functions
+//===----------------------------------------------------------------------===//
+
+/// Functions that Swift has made available for runtime lookup by mangled name.
+public var accessibleFunctions: [AccessibleFunction] {
+  refreshLoadedImages()
+
+  return imageInspectionStorage.accessibleFunctions.map {
+    AccessibleFunction(ptr: $0)
+  }
+}
+
+@_cdecl("registerAccessibleFunctions")
+public func registerAccessibleFunctions(section: UnsafeRawPointer, size: Int) {
+  let recordSize = MemoryLayout<_AccessibleFunction>.stride
+  guard size.isMultiple(of: recordSize) else { return }
+
+  for index in 0 ..< size / recordSize {
+    imageInspectionStorage.insertAccessibleFunction(
+      section.advanced(by: index * recordSize)
+    )
+  }
+}
+
+//===----------------------------------------------------------------------===//
 // Mach-O Image Inspection
 //===----------------------------------------------------------------------===//
 
@@ -251,6 +360,15 @@ final class ImageInspectionStorage: @unchecked Sendable {
   private let typeLock = NSLock()
   private var storedTypes = Set<UnsafeRawPointer>()
 
+  private let dynamicReplacementScopeLock = NSLock()
+  private var storedDynamicReplacementScopes = Set<UnsafeRawPointer>()
+
+  private let opaqueTypeReplacementLock = NSLock()
+  private var storedOpaqueTypeReplacements = Set<UnsafeRawPointer>()
+
+  private let accessibleFunctionLock = NSLock()
+  private var storedAccessibleFunctions = Set<UnsafeRawPointer>()
+
   private let sharedObjectLock = NSLock()
   private var storedSharedObjects = Set<String>()
 
@@ -260,6 +378,18 @@ final class ImageInspectionStorage: @unchecked Sendable {
 
   var types: Set<UnsafeRawPointer> {
     typeLock.withLock { storedTypes }
+  }
+
+  var dynamicReplacementScopes: Set<UnsafeRawPointer> {
+    dynamicReplacementScopeLock.withLock { storedDynamicReplacementScopes }
+  }
+
+  var opaqueTypeReplacements: Set<UnsafeRawPointer> {
+    opaqueTypeReplacementLock.withLock { storedOpaqueTypeReplacements }
+  }
+
+  var accessibleFunctions: Set<UnsafeRawPointer> {
+    accessibleFunctionLock.withLock { storedAccessibleFunctions }
   }
 
   func insertProtocol(_ pointer: UnsafeRawPointer) {
@@ -299,11 +429,39 @@ final class ImageInspectionStorage: @unchecked Sendable {
     }
   }
 
+  func insertDynamicReplacementScope(_ pointer: UnsafeRawPointer) {
+    _ = dynamicReplacementScopeLock.withLock {
+      storedDynamicReplacementScopes.insert(pointer)
+    }
+  }
+
+  func insertOpaqueTypeReplacement(_ pointer: UnsafeRawPointer) {
+    _ = opaqueTypeReplacementLock.withLock {
+      storedOpaqueTypeReplacements.insert(pointer)
+    }
+  }
+
+  func insertAccessibleFunction(_ pointer: UnsafeRawPointer) {
+    _ = accessibleFunctionLock.withLock {
+      storedAccessibleFunctions.insert(pointer)
+    }
+  }
+
   func insertSharedObject(_ path: String) -> (inserted: Bool, memberAfterInsert: String) {
     sharedObjectLock.withLock {
       storedSharedObjects.insert(path)
     }
   }
+}
+
+private struct _AutomaticDynamicReplacementEntry {
+  let _scope: RelativeDirectPointer<_DynamicReplacementScope>
+  let _flags: UInt32
+}
+
+private struct _AutomaticOpaqueTypeReplacement {
+  let _flags: UInt32
+  let _numEntries: UInt32
 }
 
 let imageInspectionStorage = ImageInspectionStorage()
