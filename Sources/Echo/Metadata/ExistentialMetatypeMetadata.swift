@@ -27,8 +27,11 @@ public struct ExistentialMetatypeMetadata: Metadata, LayoutWrapper {
   }
   
   /// The metadata for the existential instance type that this metatype wraps.
-  public var instanceMetadata: ExistentialMetadata {
-    reflect(instanceType) as! ExistentialMetadata
+  public var instanceMetadata: any ExistentialTypeMetadata {
+    guard let metadata = reflect(instanceType) as? any ExistentialTypeMetadata else {
+      preconditionFailure("Existential metatype does not wrap existential type metadata")
+    }
+    return metadata
   }
   
   /// The flags specific to existential metadata.

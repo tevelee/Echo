@@ -21,6 +21,9 @@ public enum MetadataKind: Int {
   
   // (3 | Flags.isNonHeap)
   case foreignClass = 515
+
+  // (4 | Flags.isNonHeap)
+  case foreignReferenceType = 516
   
   // (0 | Flags.isRuntimePrivate | Flags.isNonHeap)
   case opaque = 768
@@ -42,6 +45,12 @@ public enum MetadataKind: Int {
   
   // (6 | Flags.isRuntimePrivate | Flags.isNonHeap)
   case existentialMetatype = 774
+
+  // (7 | Flags.isRuntimePrivate | Flags.isNonHeap)
+  case extendedExistential = 775
+
+  // (8 | Flags.isRuntimePrivate | Flags.isNonHeap)
+  case fixedArray = 776
   
   // (0 | Flags.isNonType)
   case heapLocalVariable = 1024
@@ -51,6 +60,12 @@ public enum MetadataKind: Int {
   
   // (1 | Flags.isRuntimePrivate | Flags.isNonType)
   case errorObject = 1281
+
+  // (2 | Flags.isRuntimePrivate | Flags.isNonType)
+  case task = 1282
+
+  // (3 | Flags.isRuntimePrivate | Flags.isNonType)
+  case job = 1283
 }
 
 extension MetadataKind {
@@ -58,6 +73,11 @@ extension MetadataKind {
     case isRuntimePrivate = 0x100
     case isNonHeap = 0x200
     case isNonType = 0x400
+  }
+
+  /// Whether this is metadata for a Swift type rather than a runtime object.
+  public var isTypeMetadata: Bool {
+    rawValue & Flags.isNonType.rawValue == 0
   }
 }
 
