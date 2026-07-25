@@ -11,6 +11,12 @@ protocol ProtocolDescriptorFixture {
   func sayHello() -> String
 }
 
+private protocol AsyncProtocolDescriptorFixture {
+  func perform() async
+}
+
+private protocol ClassProtocolDescriptorFixture: AnyObject {}
+
 extension EchoTests {
   @Test
   func testProtocolDescriptor() throws {
@@ -22,6 +28,7 @@ extension EchoTests {
     #expect(proto.numRequirements == 6)
     #expect(proto.numRequirementsInSignature == 0)
     #expect(proto.protocolFlags.bits == 1)
+    #expect(proto.protocolFlags.hasClassConstraint == false)
     #expect(proto.requirementSignature.count == 0)
     
     for (i, requirement) in proto.requirements.enumerated() {
@@ -42,5 +49,29 @@ extension EchoTests {
         break
       }
     }
+  }
+
+  @Test
+  func protocolDescriptorModernFlags() throws {
+    let error = try #require(reflect((any Error).self) as? ExistentialMetadata)
+    let errorDescriptor = try #require(error.protocols.first)
+    #expect(errorDescriptor.protocolFlags.specialProtocol == .error)
+
+    let classBound = try #require(
+      reflect((any ClassProtocolDescriptorFixture).self) as? ExistentialMetadata
+    )
+    let classBoundDescriptor = try #require(classBound.protocols.first)
+    #expect(classBoundDescriptor.protocolFlags.hasClassConstraint)
+
+    let async = try #require(
+      reflect((any AsyncProtocolDescriptorFixture).self) as? ExistentialMetadata
+    )
+    let asyncRequirement = try #require(async.protocols.first?.requirements.first)
+    #expect(asyncRequirement.flags.kind == .method)
+    #expect(asyncRequirement.flags.isAsync)
+    #expect(asyncRequirement.flags.isCoroutine == false)
+    #expect(asyncRequirement.flags.isData)
+    #expect(asyncRequirement.flags.isSignedWithAddress)
+    #expect(asyncRequirement.flags.isFunctionImplementation == false)
   }
 }

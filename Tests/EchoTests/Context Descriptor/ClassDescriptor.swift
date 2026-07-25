@@ -14,6 +14,10 @@ class Super {
 
 class Child: Super {}
 
+private class AsyncMethodDescriptorFixture {
+  func perform() async {}
+}
+
 extension EchoTests {
   @Test
   func testClassDescriptor() {
@@ -40,5 +44,16 @@ extension EchoTests {
     #else
     #expect(childDescriptor.fieldOffsetVectorOffset == 10)
     #endif
+  }
+
+  @Test
+  func asyncMethodDescriptorFlags() throws {
+    let metadata = try #require(reflectClass(AsyncMethodDescriptorFixture.self))
+    let descriptor = try #require(metadata.descriptor)
+    let method = try #require(descriptor.methodDescriptors.first { $0.flags.kind == .method })
+
+    #expect(method.flags.isAsync)
+    #expect(method.flags.isCoroutine == false)
+    #expect(method.flags.isData)
   }
 }

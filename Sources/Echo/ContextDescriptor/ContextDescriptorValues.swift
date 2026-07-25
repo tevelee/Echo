@@ -233,6 +233,36 @@ extension MethodDescriptor {
     public var isDynamic: Bool {
       bits & 0x20 != 0
     }
+
+    /// Whether this method is `async`.
+    ///
+    /// For coroutine accessors, the same ABI bit indicates a callee-allocated
+    /// coroutine context instead. Use
+    /// `isCalleeAllocatedCoroutine` for that case.
+    public var isAsync: Bool {
+      isCoroutine == false && bits & 0x40 != 0
+    }
+
+    /// Whether this descriptor describes a read or modify coroutine.
+    public var isCoroutine: Bool {
+      kind == .modifyCoroutine || kind == .readCoroutine
+    }
+
+    /// Whether this coroutine has a callee-allocated context.
+    public var isCalleeAllocatedCoroutine: Bool {
+      isCoroutine && bits & 0x40 != 0
+    }
+
+    /// Whether the ABI's async bit carries data for this descriptor.
+    public var isData: Bool {
+      isAsync || isCalleeAllocatedCoroutine
+    }
+
+    /// The discriminator used by runtime features that extend a method
+    /// descriptor without changing its stable leading layout.
+    public var extraDiscriminator: UInt16 {
+      UInt16(truncatingIfNeeded: bits >> 16)
+    }
   }
 }
 
@@ -257,7 +287,9 @@ extension ProtocolDescriptor {
     /// Whether this protocol descriptor has a class constraint.
     /// E.g. AnyObject constraint.
     public var hasClassConstraint: Bool {
-      bits & 0x1 != 0
+      // The ABI stores `ProtocolClassConstraint`: `.class` is zero for
+      // Objective-C protocol compatibility, while `.any` is one.
+      bits & 0x1 == 0
     }
     
     /// Whether this protocol is built for resilience.
@@ -267,7 +299,7 @@ extension ProtocolDescriptor {
     
     /// The special protocol kind this protocol is, if it is one.
     public var specialProtocol: SpecialProtocol {
-      SpecialProtocol(rawValue: UInt8(bits & 0xFC))!
+      SpecialProtocol(rawValue: UInt8((bits & 0xFC) >> 2))!
     }
   }
 }
@@ -286,6 +318,52 @@ extension ProtocolRequirement {
     /// Whether this protocol requirement is some instance requirement.
     public var isInstance: Bool {
       bits & 0x10 != 0
+    }
+
+    /// Whether this requirement is an `async` function requirement.
+    ///
+    /// For coroutine requirements, the same ABI bit means a callee-allocated
+    /// coroutine context. Use `isCalleeAllocatedCoroutine` for
+    /// that case.
+    public var isAsync: Bool {
+      isCoroutine == false && bits & 0x20 != 0
+    }
+
+    /// Whether this requirement is a read or modify coroutine.
+    public var isCoroutine: Bool {
+      kind == .readCoroutine || kind == .modifyCoroutine
+    }
+
+    /// Whether this coroutine requirement has a callee-allocated context.
+    public var isCalleeAllocatedCoroutine: Bool {
+      isCoroutine && bits & 0x20 != 0
+    }
+
+    /// Whether the ABI's async bit carries data for this requirement.
+    public var isData: Bool {
+      isAsync || isCalleeAllocatedCoroutine
+    }
+
+    /// Whether this requirement's implementation is signed with its address.
+    public var isSignedWithAddress: Bool {
+      kind != .baseProtocol
+    }
+
+    /// Whether this requirement's implementation is represented by a native
+    /// function pointer.
+    public var isFunctionImplementation: Bool {
+      switch kind {
+      case .method, .`init`, .getter, .setter, .readCoroutine, .modifyCoroutine:
+        return isAsync == false
+      case .baseProtocol, .associatedTypeAccessFunction, .associatedConformanceAccessFunction:
+        return false
+      }
+    }
+
+    /// The discriminator used by runtime features that extend a requirement
+    /// without changing its stable leading layout.
+    public var extraDiscriminator: UInt16 {
+      UInt16(truncatingIfNeeded: bits >> 16)
     }
   }
 }
