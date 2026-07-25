@@ -42,7 +42,7 @@ typedef struct ValueWitnessTable {
 typedef struct EnumValueWitnessTable {
   ValueWitnessTable base;
   
-  int (* VWT_FP(0xa3b5) getEnumTag)(const void *, const void *);
+  unsigned (* VWT_FP(0xa3b5) getEnumTag)(const void *, const void *);
   void (* VWT_FP(0x041d) destructiveProjectEnumData)(void *, const void *);
   void (* VWT_FP(0xb2e4) destructiveInjectEnumTag)(void *, unsigned,
                                                    const void *);
