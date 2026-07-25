@@ -8,6 +8,10 @@
 
 import Foundation
 
+#if _ptrauth(_arm64e)
+import CEcho
+#endif
+
 /// Type metadata refers to those metadata records who declare a new type in
 /// Swift. Said metadata records only refer to structs, classes, and enums.
 ///
@@ -61,6 +65,22 @@ public enum GenericArgument {
 }
 
 extension TypeMetadata {
+  /// The compiler-emitted compact layout-string encoding for this nominal
+  /// type, if the descriptor advertises one. The encoding is runtime-private
+  /// data and is exposed for inspection only.
+  public var layoutString: UnsafeRawPointer? {
+    guard contextDescriptor?.typeFlags.hasLayoutString == true else {
+      return nil
+    }
+
+    let pointer = ptr.offset(of: -2).load(as: UnsafeRawPointer?.self)
+    #if _ptrauth(_arm64e)
+    return __ptrauth_strip_asda(pointer)
+    #else
+    return pointer
+    #endif
+  }
+
   /// The list of conformances defined for this type metadata.
   ///
   /// NOTE: This list is populated once before the program starts with all of
