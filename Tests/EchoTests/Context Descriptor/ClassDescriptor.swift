@@ -58,6 +58,49 @@ extension EchoTests {
   }
 
   @Test
+  func methodDescriptorsResolveImplementationPointers() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 128, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 128)
+    defer { storage.deallocate() }
+
+    let method = MethodDescriptor(ptr: UnsafeRawPointer(storage))
+    storage.storeBytes(
+      of: _MethodDescriptor(
+        _flags: MethodDescriptor.Flags(bits: 0),
+        _impl: RelativeDirectPointer<Void>(offset: 60)
+      ),
+      as: _MethodDescriptor.self
+    )
+    #expect(method.implementation == UnsafeRawPointer(storage + 64))
+
+    storage.storeBytes(
+      of: _MethodOverrideDescriptor(
+        _class: RelativeIndirectablePointer<_ContextDescriptor>(offset: 0),
+        _method: RelativeIndirectablePointer<_MethodDescriptor>(offset: 0),
+        _impl: RelativeDirectPointer<Void>(offset: 60)
+      ),
+      toByteOffset: 16,
+      as: _MethodOverrideDescriptor.self
+    )
+    let override = MethodOverrideDescriptor(ptr: UnsafeRawPointer(storage + 16))
+    #expect(override.implementation == UnsafeRawPointer(storage + 84))
+
+    storage.storeBytes(
+      of: _MethodDefaultOverrideDescriptor(
+        _replacement: RelativeIndirectablePointer<_MethodDescriptor>(offset: 48),
+        _original: RelativeIndirectablePointer<_MethodDescriptor>(offset: 44),
+        _implementation: RelativeDirectPointer<Void>(offset: 56)
+      ),
+      toByteOffset: 32,
+      as: _MethodDefaultOverrideDescriptor.self
+    )
+    let defaultOverride = MethodDefaultOverrideDescriptor(ptr: UnsafeRawPointer(storage + 32))
+    #expect(defaultOverride.replacement?.ptr == UnsafeRawPointer(storage + 80))
+    #expect(defaultOverride.original?.ptr == UnsafeRawPointer(storage + 80))
+    #expect(defaultOverride.implementation == UnsafeRawPointer(storage + 96))
+  }
+
+  @Test
   func classTrailingRecordsPreserveModernOrdering() {
     let storage = UnsafeMutableRawPointer.allocate(byteCount: 128, alignment: 8)
     storage.initializeMemory(as: UInt8.self, repeating: 0, count: 128)

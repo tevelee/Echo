@@ -605,6 +605,15 @@ public struct MethodDescriptor: LayoutWrapper {
   public var flags: Flags {
     layout._flags
   }
+
+  /// The opaque implementation pointer for this method. It must not be
+  /// invoked directly.
+  public var implementation: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_MethodDescriptor>.offset(of: \._impl)!
+    let reference = layout._impl
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
 }
 
 /// Structure that tells the number of method override entries in a class
@@ -638,6 +647,15 @@ public struct MethodOverrideDescriptor: LayoutWrapper {
   public var method: MethodDescriptor {
     MethodDescriptor(ptr: address(for: \._method))
   }
+
+  /// The opaque implementation pointer that overrides the base method. It
+  /// must not be invoked directly.
+  public var implementation: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_MethodOverrideDescriptor>.offset(of: \._impl)!
+    let reference = layout._impl
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
 }
 
 /// Header for a table of default method override records.
@@ -661,7 +679,7 @@ public struct MethodDefaultOverrideDescriptor: LayoutWrapper {
 
   /// The method selected at replacement call sites.
   public var replacement: MethodDescriptor? {
-    let field = address(for: \._replacement)
+    let field = ptr + MemoryLayout<_MethodDefaultOverrideDescriptor>.offset(of: \._replacement)!
     let reference = layout._replacement
     guard reference.isNull == false else { return nil }
     return MethodDescriptor(ptr: reference.address(from: field))
@@ -669,7 +687,7 @@ public struct MethodDefaultOverrideDescriptor: LayoutWrapper {
 
   /// The method originally selected at those call sites.
   public var original: MethodDescriptor? {
-    let field = address(for: \._original)
+    let field = ptr + MemoryLayout<_MethodDefaultOverrideDescriptor>.offset(of: \._original)!
     let reference = layout._original
     guard reference.isNull == false else { return nil }
     return MethodDescriptor(ptr: reference.address(from: field))
@@ -678,7 +696,7 @@ public struct MethodDefaultOverrideDescriptor: LayoutWrapper {
   /// The opaque replacement implementation pointer. It must not be invoked
   /// directly.
   public var implementation: UnsafeRawPointer? {
-    let field = address(for: \._implementation)
+    let field = ptr + MemoryLayout<_MethodDefaultOverrideDescriptor>.offset(of: \._implementation)!
     let reference = layout._implementation
     guard reference.isNull == false else { return nil }
     return reference.address(from: field)
