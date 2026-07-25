@@ -66,6 +66,8 @@ extension EchoTests {
     let metadata = FunctionMetadata(ptr: UnsafeRawPointer(storage))
     let parameter = metadata.paramFlags[0]
     #expect(parameter.valueOwnership == .owned)
+    #expect(parameter.ownership == .consuming)
+    #expect(ParameterOwnership.borrowing == .shared)
     #expect(parameter.isNoDerivative)
     #expect(parameter.isIsolated)
     #expect(parameter.isSending)

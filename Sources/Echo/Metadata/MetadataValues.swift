@@ -270,6 +270,14 @@ extension FunctionMetadata {
     public var valueOwnership: ValueOwnership {
       ValueOwnership(rawValue: UInt8(bits & 0x7F))!
     }
+
+    /// The ownership convention using current Swift terminology.
+    ///
+    /// This is equivalent to `valueOwnership`; the older spelling remains for
+    /// source compatibility with existing Echo clients.
+    public var ownership: ParameterOwnership {
+      valueOwnership
+    }
     
     /// Whether or not this parameter is variadic. E.g. Int...
     public var isVariadic: Bool {
@@ -300,7 +308,7 @@ extension FunctionMetadata {
 
 /// A discriminator to determine what the ownership rules are (currently) for
 /// a function parameter.
-public enum ValueOwnership: UInt8 {
+public enum ValueOwnership: UInt8, Sendable {
   /// The default ownership rule for all Swift parameters, which might mean
   /// shared or owned.
   case `default` = 0
@@ -314,6 +322,21 @@ public enum ValueOwnership: UInt8 {
   
   /// Owned refers to passing a value via copy.
   case owned = 3
+}
+
+/// The ownership convention of a function parameter.
+///
+/// Swift's ABI calls the borrowing and consuming conventions `Shared` and
+/// `Owned`. Echo keeps those stable case names through `ValueOwnership` and
+/// provides this alias with modern surface-language terminology.
+public typealias ParameterOwnership = ValueOwnership
+
+extension ValueOwnership {
+  /// A nonexclusive `borrowing` parameter.
+  public static let borrowing: Self = .shared
+
+  /// A `consuming` ownership transfer.
+  public static let consuming: Self = .owned
 }
 
 extension ValueWitnessTable {
