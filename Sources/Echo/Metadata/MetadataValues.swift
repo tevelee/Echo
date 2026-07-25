@@ -102,6 +102,24 @@ public enum MetadataState: UInt8 {
   case abstract = 0xFF
 }
 
+/// Flags stored after the trailing data of a statically-specialized generic
+/// value metadata record.
+public struct MetadataTrailingFlags {
+  /// Flags as represented in bits.
+  public let bits: UInt64
+
+  /// Whether this metadata specialization was created during compilation.
+  public var isStaticSpecialization: Bool {
+    bits & 0x1 != 0
+  }
+
+  /// Whether this static specialization was made canonical by its metadata
+  /// accessor.
+  public var isCanonicalStaticSpecialization: Bool {
+    bits & 0x2 != 0
+  }
+}
+
 extension ClassMetadata {
   /// The flags that describe some class metadata.
   public struct Flags {

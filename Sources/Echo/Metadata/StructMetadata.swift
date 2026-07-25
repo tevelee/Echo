@@ -42,6 +42,35 @@ public struct StructMetadata: TypeMetadata, LayoutWrapper {
       $1 = descriptor.numFields
     }
   }
+
+  /// Flags recorded after this generic struct metadata's field-offset vector
+  /// when the compiler emitted a static specialization.
+  public var trailingFlags: MetadataTrailingFlags? {
+    guard descriptor.flags.isGeneric,
+          descriptor.typeGenericContext.genericMetadataPattern.flags.hasTrailingFlags
+    else {
+      return nil
+    }
+
+    let fieldOffsetWords = descriptor.fieldOffsetVectorOffset
+    let fieldOffsetVectorWords = (
+      descriptor.numFields * MemoryLayout<UInt32>.stride + MemoryLayout<UnsafeRawPointer>.size - 1
+    ) / MemoryLayout<UnsafeRawPointer>.size
+    let address = ptr.offset(of: fieldOffsetWords + fieldOffsetVectorWords)
+    return MetadataTrailingFlags(bits: address.loadUnaligned(as: UInt64.self))
+  }
+
+  /// Whether this metadata is a generic specialization created during
+  /// compilation.
+  public var isStaticallySpecializedGenericMetadata: Bool {
+    trailingFlags?.isStaticSpecialization == true
+  }
+
+  /// Whether this compiled generic specialization was made canonical by its
+  /// metadata accessor.
+  public var isCanonicalStaticallySpecializedGenericMetadata: Bool {
+    trailingFlags?.isCanonicalStaticSpecialization == true
+  }
 }
 
 extension StructMetadata: Equatable {}

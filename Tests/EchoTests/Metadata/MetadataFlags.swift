@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import Echo
+@testable import Echo
 
 actor FlagActor {
   var counter = 0
@@ -92,5 +92,64 @@ extension EchoTests {
       #expect(extended.invertedProtocols.invertsEscapable == false)
       #expect(typesEqual(typedThrows.thrownErrorType, FlagThrownError.self))
     }
+  }
+
+  @Test
+  func staticSpecializationTrailingFlagsFollowStructAndEnumLayouts() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 256, alignment: 8)
+    defer { storage.deallocate() }
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 256)
+
+    let descriptor = UnsafeRawPointer(storage)
+    let metadata = UnsafeRawPointer(storage + 128)
+
+    // A 28-byte value descriptor is followed by the 16-byte type-generic
+    // context header. Its pattern pointer is relative to byte 32.
+    storage.storeBytes(
+      of: ContextDescriptorFlags(
+        bits: UInt32(ContextDescriptorKind.struct.rawValue) | 0x80
+      ),
+      as: ContextDescriptorFlags.self
+    )
+    storage.storeBytes(of: UInt32(2), toByteOffset: 20, as: UInt32.self)
+    storage.storeBytes(of: UInt32(3), toByteOffset: 24, as: UInt32.self)
+    storage.storeBytes(of: Int32(32), toByteOffset: 32, as: Int32.self)
+    storage.storeBytes(of: UInt16(1), toByteOffset: 40, as: UInt16.self)
+    storage.storeBytes(of: UInt32(0x2), toByteOffset: 72, as: UInt32.self)
+
+    storage.storeBytes(of: MetadataKind.struct.rawValue, toByteOffset: 128, as: Int.self)
+    storage.storeBytes(of: descriptor, toByteOffset: 136, as: UnsafeRawPointer.self)
+    // The two field offsets occupy a full word at offset 3. The flags follow
+    // at offset 4.
+    storage.storeBytes(of: UInt64(0x3), toByteOffset: 160, as: UInt64.self)
+
+    let reflectedStruct = StructMetadata(ptr: metadata)
+    #expect(reflectedStruct.trailingFlags?.bits == 0x3)
+    #expect(reflectedStruct.isStaticallySpecializedGenericMetadata)
+    #expect(reflectedStruct.isCanonicalStaticallySpecializedGenericMetadata)
+
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 256)
+    storage.storeBytes(
+      of: ContextDescriptorFlags(
+        bits: UInt32(ContextDescriptorKind.enum.rawValue) | 0x80
+      ),
+      as: ContextDescriptorFlags.self
+    )
+    storage.storeBytes(of: Int32(32), toByteOffset: 32, as: Int32.self)
+    storage.storeBytes(of: UInt16(1), toByteOffset: 40, as: UInt16.self)
+    storage.storeBytes(of: UInt32(0x2), toByteOffset: 72, as: UInt32.self)
+    storage.storeBytes(of: MetadataKind.enum.rawValue, toByteOffset: 128, as: Int.self)
+    storage.storeBytes(of: descriptor, toByteOffset: 136, as: UnsafeRawPointer.self)
+    // Enum metadata starts its generic arguments at word 2, so one argument
+    // places the trailing flags at word 3.
+    storage.storeBytes(of: UInt64(0x1), toByteOffset: 152, as: UInt64.self)
+
+    let reflectedEnum = EnumMetadata(ptr: metadata)
+    #expect(reflectedEnum.trailingFlags?.bits == 0x1)
+    #expect(reflectedEnum.isStaticallySpecializedGenericMetadata)
+    #expect(reflectedEnum.isCanonicalStaticallySpecializedGenericMetadata == false)
+
+    storage.storeBytes(of: UInt32(0), toByteOffset: 72, as: UInt32.self)
+    #expect(reflectedEnum.trailingFlags == nil)
   }
 }
