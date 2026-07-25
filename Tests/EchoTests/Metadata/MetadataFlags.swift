@@ -160,4 +160,58 @@ extension EchoTests {
     storage.storeBytes(of: UInt32(0), toByteOffset: 72, as: UInt32.self)
     #expect(reflectedEnum.trailingFlags == nil)
   }
+
+  @Test
+  func singletonAndResilientClassInitializationRecordsResolvePointers() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 320, alignment: 8)
+    defer { storage.deallocate() }
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 320)
+
+    storage.storeBytes(
+      of: _SingletonMetadataInitialization(
+        _initializationCache: RelativeDirectPointer<Void>(offset: 64),
+        _incompleteMetadataOrResilientPattern: 76,
+        _completionFunc: RelativeDirectPointer<UnsafeRawPointer>(offset: 88)
+      ),
+      as: _SingletonMetadataInitialization.self
+    )
+    let singleton = SingletonMetadataInitialization(ptr: UnsafeRawPointer(storage))
+    #expect(singleton.initializationCache == UnsafeRawPointer(storage).advanced(by: 64))
+    #expect(
+      singleton.initialMetadataOrResilientPattern
+        == UnsafeRawPointer(storage).advanced(by: 80)
+    )
+    #expect(singleton.completionFunction == UnsafeRawPointer(storage).advanced(by: 96))
+
+    storage.storeBytes(
+      of: _ForeignMetadataInitialization(
+        _completionFunc: RelativeDirectPointer<UnsafeRawPointer>(offset: 96)
+      ),
+      toByteOffset: 16,
+      as: _ForeignMetadataInitialization.self
+    )
+    let foreign = ForeignMetadataInitialization(ptr: UnsafeRawPointer(storage + 16))
+    #expect(foreign.completionFunction == UnsafeRawPointer(storage).advanced(by: 112))
+
+    storage.storeBytes(
+      of: _ResilientClassMetadataPattern(
+        _relocationFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 80),
+        _destroy: RelativeDirectPointer<UnsafeRawPointer>(offset: 84),
+        _ivarDestroyer: RelativeDirectPointer<UnsafeRawPointer>(offset: 88),
+        _flags: ClassMetadata.Flags(bits: 0x18),
+        _data: RelativeDirectPointer<Void>(offset: 88),
+        _metaclass: RelativeDirectPointer<Void>(offset: 92)
+      ),
+      toByteOffset: 128,
+      as: _ResilientClassMetadataPattern.self
+    )
+    let resilient = ResilientClassMetadataPattern(ptr: UnsafeRawPointer(storage + 128))
+    #expect(resilient.relocationFunction == UnsafeRawPointer(storage).advanced(by: 208))
+    #expect(resilient.destroyFunction == UnsafeRawPointer(storage).advanced(by: 216))
+    #expect(resilient.ivarDestroyer == UnsafeRawPointer(storage).advanced(by: 224))
+    #expect(resilient.flags.isStaticSpecialization)
+    #expect(resilient.flags.isCanonicalStaticSpecialization)
+    #expect(resilient.data == UnsafeRawPointer(storage).advanced(by: 232))
+    #expect(resilient.metaclass == UnsafeRawPointer(storage).advanced(by: 240))
+  }
 }

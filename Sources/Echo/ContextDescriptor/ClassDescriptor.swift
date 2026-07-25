@@ -120,7 +120,29 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
     guard let offset = trailingLayout.singletonMetadataInitialization else { return nil }
     return SingletonMetadataInitialization(ptr: trailing + offset)
   }
-  
+
+  /// The incomplete metadata referenced by this class's singleton
+  /// initialization record, if it does not have resilient ancestry.
+  public var incompleteSingletonMetadata: Metadata? {
+    guard typeFlags.classHasResilientSuperclass == false,
+          let pointer = singletonMetadataInitialization?.initialMetadataOrResilientPattern
+    else {
+      return nil
+    }
+    return getMetadata(at: pointer)
+  }
+
+  /// The allocation pattern referenced by this class's singleton metadata
+  /// initialization record when its superclass is resilient.
+  public var resilientClassMetadataPattern: ResilientClassMetadataPattern? {
+    guard typeFlags.classHasResilientSuperclass,
+          let pointer = singletonMetadataInitialization?.initialMetadataOrResilientPattern
+    else {
+      return nil
+    }
+    return ResilientClassMetadataPattern(ptr: pointer)
+  }
+
   /// The VTable header information for this class, if it has a vtable.
   public var vtableHeader: VTableDescriptorHeader? {
     guard let offset = trailingLayout.vtableHeader else { return nil }

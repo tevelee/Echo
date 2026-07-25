@@ -87,6 +87,18 @@ public struct ForeignMetadataInitialization: LayoutWrapper {
   
   /// Backing ForeignMetadataInitialzation pointer.
   let ptr: UnsafeRawPointer
+
+  /// The runtime-private function that completes this metadata initialization,
+  /// if one was emitted. It is exposed for inspection only and must not be
+  /// invoked by clients.
+  public var completionFunction: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_ForeignMetadataInitialization>.offset(
+      of: \._completionFunc
+    )!
+    let reference = layout._completionFunc
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
 }
 
 /// Structure that contains information needed to perform initialization of
@@ -96,6 +108,99 @@ public struct SingletonMetadataInitialization: LayoutWrapper {
   
   /// Backing SingletonMetadataInitialization pointer.
   let ptr: UnsafeRawPointer
+
+  /// The runtime-owned mutable initialization cache, if the compiler emitted
+  /// one. Its contents are intentionally not decoded or mutated by Echo.
+  public var initializationCache: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_SingletonMetadataInitialization>.offset(
+      of: \._initializationCache
+    )!
+    let reference = layout._initializationCache
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// The union target used by this record. It is incomplete metadata for value
+  /// types and classes without resilient ancestry, or a resilient class
+  /// metadata pattern for classes with resilient ancestry.
+  public var initialMetadataOrResilientPattern: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_SingletonMetadataInitialization>.offset(
+      of: \._incompleteMetadataOrResilientPattern
+    )!
+    let reference = RelativeDirectPointer<Void>(
+      offset: layout._incompleteMetadataOrResilientPattern
+    )
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// The runtime-private function that completes this metadata initialization.
+  /// It is exposed for inspection only and must not be invoked by clients.
+  public var completionFunction: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_SingletonMetadataInitialization>.offset(
+      of: \._completionFunc
+    )!
+    let reference = layout._completionFunc
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+}
+
+/// The allocation pattern used by a non-generic class with resilient ancestry.
+public struct ResilientClassMetadataPattern: LayoutWrapper {
+  typealias Layout = _ResilientClassMetadataPattern
+
+  /// Backing resilient class metadata pattern pointer.
+  let ptr: UnsafeRawPointer
+
+  /// The runtime-private allocation entry point, if the runtime should not use
+  /// its built-in class metadata relocator. It is exposed for inspection only.
+  public var relocationFunction: UnsafeRawPointer? {
+    functionAddress(for: \._relocationFunction)
+  }
+
+  /// The runtime-private heap-destroyer entry point. It is exposed for
+  /// inspection only and must not be invoked by clients.
+  public var destroyFunction: UnsafeRawPointer? {
+    functionAddress(for: \._destroy)
+  }
+
+  /// The runtime-private instance-variable destroyer entry point, if one was
+  /// emitted. It is exposed for inspection only and must not be invoked by
+  /// clients.
+  public var ivarDestroyer: UnsafeRawPointer? {
+    functionAddress(for: \._ivarDestroyer)
+  }
+
+  /// Class flags applied to metadata allocated from this pattern.
+  public var flags: ClassMetadata.Flags {
+    layout._flags
+  }
+
+  /// The Objective-C class RO-data record, if one is present on this runtime.
+  public var data: UnsafeRawPointer? {
+    relativeAddress(for: \._data)
+  }
+
+  /// The Objective-C metaclass record, if one is present on this runtime.
+  public var metaclass: UnsafeRawPointer? {
+    relativeAddress(for: \._metaclass)
+  }
+
+  private func functionAddress(
+    for field: KeyPath<_ResilientClassMetadataPattern, RelativeDirectPointer<UnsafeRawPointer>>
+  ) -> UnsafeRawPointer? {
+    relativeAddress(for: field)
+  }
+
+  private func relativeAddress<T>(
+    for field: KeyPath<_ResilientClassMetadataPattern, RelativeDirectPointer<T>>
+  ) -> UnsafeRawPointer? {
+    let address = ptr + MemoryLayout<_ResilientClassMetadataPattern>.offset(of: field)!
+    let reference = layout[keyPath: field]
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: address)
+  }
 }
 
 struct _TypeDescriptor {
@@ -117,4 +222,13 @@ struct _SingletonMetadataInitialization {
   let _incompleteMetadataOrResilientPattern: Int32
   
   let _completionFunc: RelativeDirectPointer<UnsafeRawPointer>
+}
+
+struct _ResilientClassMetadataPattern {
+  let _relocationFunction: RelativeDirectPointer<UnsafeRawPointer>
+  let _destroy: RelativeDirectPointer<UnsafeRawPointer>
+  let _ivarDestroyer: RelativeDirectPointer<UnsafeRawPointer>
+  let _flags: ClassMetadata.Flags
+  let _data: RelativeDirectPointer<Void>
+  let _metaclass: RelativeDirectPointer<Void>
 }

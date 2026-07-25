@@ -69,6 +69,15 @@ public struct EnumDescriptor: TypeContextDescriptor, LayoutWrapper {
     return SingletonMetadataInitialization(ptr: trailing + offset)
   }
 
+  /// The incomplete metadata referenced by this enum's singleton
+  /// initialization record, if it has one.
+  public var incompleteSingletonMetadata: Metadata? {
+    guard let pointer = singletonMetadataInitialization?.initialMetadataOrResilientPattern else {
+      return nil
+    }
+    return getMetadata(at: pointer)
+  }
+
   /// Canonical metadata specializations emitted for this generic type.
   public var canonicalMetadataPrespecializations: [Metadata] {
     guard let offset = trailingLayout.canonicalMetadataList else { return [] }
