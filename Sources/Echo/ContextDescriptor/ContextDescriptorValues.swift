@@ -124,7 +124,7 @@ extension GenericMetadataPattern {
     
     /// Whether or not this class pattern has an immediate member pattern.
     public var classHasImmediateMembersPattern: Bool {
-      bits & (0x1 << 30) != 0
+      bits & (0x1 << 31) != 0
     }
   }
 }

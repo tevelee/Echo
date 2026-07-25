@@ -562,6 +562,33 @@ public struct GenericMetadataPattern: LayoutWrapper {
   
   /// Backing GenericMetadataPattern pointer.
   let ptr: UnsafeRawPointer
+
+  /// The runtime entry point that instantiates metadata from this pattern.
+  ///
+  /// The function has a runtime-private calling convention. Echo exposes its
+  /// address for inspection only; clients must not invoke it.
+  public var instantiationFunction: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_GenericMetadataPattern>.offset(
+      of: \._instantiationFunction
+    )!
+    let reference = layout._instantiationFunction
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// The runtime entry point that completes metadata instantiated from this
+  /// pattern, if the instantiator does not produce complete metadata itself.
+  ///
+  /// The function has a runtime-private calling convention. Echo exposes its
+  /// address for inspection only; clients must not invoke it.
+  public var completionFunction: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_GenericMetadataPattern>.offset(
+      of: \._completionFunction
+    )!
+    let reference = layout._completionFunction
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
   
   /// The flags that represent this instantiation pattern.
   public var flags: Flags {

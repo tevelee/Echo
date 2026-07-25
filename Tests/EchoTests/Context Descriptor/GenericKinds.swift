@@ -168,6 +168,38 @@ extension EchoTests {
   }
 
   @Test
+  func genericMetadataPatternResolvesEntryPointsAndModernFlags() {
+    let buffer = UnsafeMutableRawPointer.allocate(
+      byteCount: 96,
+      alignment: MemoryLayout<_GenericMetadataPattern>.alignment
+    )
+    defer { buffer.deallocate() }
+    buffer.initializeMemory(as: UInt8.self, repeating: 0, count: 96)
+
+    let instantiationFunction = UnsafeRawPointer(buffer + 64)
+    let completionFunction = UnsafeRawPointer(buffer + 80)
+    buffer.storeBytes(
+      of: _GenericMetadataPattern(
+        _instantiationFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 64),
+        _completionFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 76),
+        _flags: GenericMetadataPattern.Flags(bits: 0x80000003)
+      ),
+      as: _GenericMetadataPattern.self
+    )
+
+    let pattern = GenericMetadataPattern(ptr: UnsafeRawPointer(buffer))
+    #expect(pattern.instantiationFunction == instantiationFunction)
+    #expect(pattern.completionFunction == completionFunction)
+    #expect(pattern.flags.hasExtraDataPattern)
+    #expect(pattern.flags.hasTrailingFlags)
+    #expect(pattern.flags.classHasImmediateMembersPattern)
+    #expect(
+      GenericMetadataPattern.Flags(bits: 0x40000000)
+        .classHasImmediateMembersPattern == false
+    )
+  }
+
+  @Test
   func sameConformanceRequirementsResolveDirectAndIndirectDescriptors() {
     let buffer = UnsafeMutableRawPointer.allocate(
       byteCount: 80,
