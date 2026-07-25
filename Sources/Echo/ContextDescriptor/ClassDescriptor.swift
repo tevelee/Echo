@@ -211,6 +211,19 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
     }
   }
 
+  /// The runtime-owned once-token used to cache this generic class's canonical
+  /// metadata prespecializations. This storage is exposed for inspection only
+  /// and must not be mutated.
+  public var canonicalMetadataPrespecializationCachingOnceToken: UnsafeRawPointer? {
+    guard let offset = trailingLayout.canonicalMetadataCachingToken else {
+      return nil
+    }
+    let field = trailing + offset
+    let reference = field.load(as: RelativeDirectPointer<Void>.self)
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
   /// Capabilities this class's primary definition explicitly inverts.
   public var invertedProtocols: InvertibleProtocolSet? {
     guard let offset = trailingLayout.invertedProtocols else { return nil }
@@ -260,6 +273,7 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
     var canonicalMetadataList: Int?
     var canonicalMetadataAccessorList: Int?
     var canonicalMetadataCount = 0
+    var canonicalMetadataCachingToken: Int?
     var invertedProtocols: Int?
     var singletonMetadata: Int?
     var defaultOverrideTableHeader: Int?
@@ -314,6 +328,7 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
       cursor += canonicalMetadataCount * MemoryLayout<RelativeDirectPointer<Void>>.stride
       canonicalMetadataAccessorList = cursor
       cursor += canonicalMetadataCount * MemoryLayout<RelativeDirectPointer<Void>>.stride
+      canonicalMetadataCachingToken = cursor
       cursor += MemoryLayout<RelativeDirectPointer<Void>>.stride
     }
 
@@ -352,6 +367,7 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
       canonicalMetadataList: canonicalMetadataList,
       canonicalMetadataAccessorList: canonicalMetadataAccessorList,
       canonicalMetadataCount: canonicalMetadataCount,
+      canonicalMetadataCachingToken: canonicalMetadataCachingToken,
       invertedProtocols: invertedProtocols,
       singletonMetadata: singletonMetadata,
       defaultOverrideTableHeader: defaultOverrideTableHeader,
@@ -378,6 +394,7 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
     let canonicalMetadataList: Int?
     let canonicalMetadataAccessorList: Int?
     let canonicalMetadataCount: Int
+    let canonicalMetadataCachingToken: Int?
     let invertedProtocols: Int?
     let singletonMetadata: Int?
     let defaultOverrideTableHeader: Int?

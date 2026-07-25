@@ -215,4 +215,46 @@ extension EchoTests {
     #expect(direct.conformance.ptr == conformanceAddress)
     #expect(indirect.conformance.ptr == conformanceAddress)
   }
+
+  @Test
+  func canonicalMetadataPrespecializationCachingTokensResolve() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 128, alignment: 8)
+    defer { storage.deallocate() }
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 128)
+
+    func flags(for kind: ContextDescriptorKind) -> ContextDescriptorFlags {
+      ContextDescriptorFlags(
+        bits: UInt32(kind.rawValue) | 0x80 | (UInt32(0x8) << 16)
+      )
+    }
+
+    // A generic struct or enum's 28-byte fixed descriptor is followed by a
+    // 16-byte generic header. Its prespecialization count, metadata list, and
+    // caching token then begin at offset 44.
+    storage.storeBytes(of: flags(for: .struct), as: ContextDescriptorFlags.self)
+    storage.storeBytes(of: UInt32(1), toByteOffset: 44, as: UInt32.self)
+    storage.storeBytes(of: Int32(60), toByteOffset: 52, as: Int32.self)
+    let token = UnsafeRawPointer(storage + 112)
+    #expect(
+      StructDescriptor(ptr: UnsafeRawPointer(storage))
+        .canonicalMetadataPrespecializationCachingOnceToken == token
+    )
+
+    storage.storeBytes(of: flags(for: .enum), as: ContextDescriptorFlags.self)
+    #expect(
+      EnumDescriptor(ptr: UnsafeRawPointer(storage))
+        .canonicalMetadataPrespecializationCachingOnceToken == token
+    )
+
+    // Classes use the same generic header but have a 44-byte fixed
+    // descriptor. Their metadata and accessor lists precede the token.
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 128)
+    storage.storeBytes(of: flags(for: .class), as: ContextDescriptorFlags.self)
+    storage.storeBytes(of: UInt32(1), toByteOffset: 60, as: UInt32.self)
+    storage.storeBytes(of: Int32(40), toByteOffset: 72, as: Int32.self)
+    #expect(
+      ClassDescriptor(ptr: UnsafeRawPointer(storage))
+        .canonicalMetadataPrespecializationCachingOnceToken == token
+    )
+  }
 }

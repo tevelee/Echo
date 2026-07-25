@@ -63,6 +63,19 @@ public struct StructDescriptor: TypeContextDescriptor, LayoutWrapper {
     }
   }
 
+  /// The runtime-owned once-token used to cache this generic type's canonical
+  /// metadata prespecializations. This storage is exposed for inspection only
+  /// and must not be mutated.
+  public var canonicalMetadataPrespecializationCachingOnceToken: UnsafeRawPointer? {
+    guard let offset = trailingLayout.canonicalMetadataCachingToken else {
+      return nil
+    }
+    let field = trailing + offset
+    let reference = field.load(as: RelativeDirectPointer<Void>.self)
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
   /// Capabilities this type's primary definition explicitly inverts.
   public var invertedProtocols: InvertibleProtocolSet? {
     guard let offset = trailingLayout.invertedProtocols else { return nil }
