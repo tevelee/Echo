@@ -43,6 +43,12 @@ public struct WitnessTable: LayoutWrapper {
   }
 }
 
+extension WitnessTable: Equatable {
+  public static func == (lhs: WitnessTable, rhs: WitnessTable) -> Bool {
+    lhs.ptr == rhs.ptr
+  }
+}
+
 struct _WitnessTable {
   let _conformance: ConformanceDescriptor
 }

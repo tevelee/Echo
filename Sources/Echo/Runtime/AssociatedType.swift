@@ -55,6 +55,57 @@ extension ProtocolDescriptor {
     )
     return unsafeBitCast(response, to: MetadataResponse.self).metadata
   }
+
+  /// Resolves the witness table proving that an associated type conforms to
+  /// `targetProtocol` for a particular conformance.
+  ///
+  /// The protocol requirement signature and associated-conformance access
+  /// requirements must have a one-to-one ordering. When a refining protocol
+  /// does not meet that ABI shape, this method fails closed with `nil`.
+  public func associatedConformanceWitness(
+    ofAssociatedType associatedTypeName: String,
+    to targetProtocol: ProtocolDescriptor,
+    conformingType: Metadata,
+    witnessTable: WitnessTable
+  ) -> WitnessTable? {
+    guard let associatedType = associatedTypeWitness(
+      named: associatedTypeName,
+      conformingType: conformingType,
+      witnessTable: witnessTable
+    ) else {
+      return nil
+    }
+
+    let protocolRequirements = requirements
+    guard let firstRequirement = protocolRequirements.first else { return nil }
+    let requirementBase = firstRequirement.ptr
+      - MemoryLayout<_ProtocolRequirement>.size
+
+    let signatureConformances = requirementSignature.filter {
+      $0.flags.kind == .protocol
+    }
+    let accessRequirements = protocolRequirements.filter {
+      $0.flags.kind == .associatedConformanceAccessFunction
+    }
+    guard signatureConformances.count == accessRequirements.count,
+          let index = signatureConformances.firstIndex(where: {
+            $0.protocol == targetProtocol
+          })
+    else {
+      return nil
+    }
+
+    guard let pointer = echo_swift_getAssociatedConformanceWitness(
+      witnessTable.ptr,
+      conformingType.ptr,
+      associatedType.ptr,
+      requirementBase,
+      accessRequirements[index].ptr
+    ) else {
+      return nil
+    }
+    return WitnessTable(ptr: pointer)
+  }
 }
 
 extension TypeMetadata {
@@ -78,6 +129,28 @@ extension TypeMetadata {
 
     return protocolDescriptor.associatedTypeWitness(
       named: name,
+      conformingType: self,
+      witnessTable: witnessTable
+    )
+  }
+
+  /// Resolves the witness table proving one of this type's associated types
+  /// conforms to another protocol.
+  public func associatedConformance(
+    ofAssociatedType associatedTypeName: String,
+    to targetProtocol: ProtocolDescriptor,
+    conformingTo protocolDescriptor: ProtocolDescriptor
+  ) -> WitnessTable? {
+    guard let witnessTable = swift_conformsToProtocol(
+      metadata: self,
+      protocol: protocolDescriptor
+    ) else {
+      return nil
+    }
+
+    return protocolDescriptor.associatedConformanceWitness(
+      ofAssociatedType: associatedTypeName,
+      to: targetProtocol,
       conformingType: self,
       witnessTable: witnessTable
     )

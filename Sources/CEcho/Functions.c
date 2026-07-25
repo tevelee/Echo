@@ -36,6 +36,12 @@ swift_getAssociatedTypeWitness(size_t request, const void *witnessTable,
                                const void *requirementBase,
                                const void *associatedTypeRequirement);
 
+extern __attribute__((swiftcall)) const void *
+swift_getAssociatedConformanceWitness(
+    const void *witnessTable, const void *conformingType,
+    const void *associatedType, const void *requirementBase,
+    const void *associatedConformanceRequirement);
+
 EchoBoxPair echo_swift_allocBox(const void *type) {
   SwiftRuntimeBoxPair pair = swift_allocBox(type);
   return (EchoBoxPair){pair.heapObj, pair.buffer};
@@ -53,6 +59,15 @@ MetadataResponse echo_swift_getAssociatedTypeWitness(
   return swift_getAssociatedTypeWitness(request, witnessTable, conformingType,
                                         requirementBase,
                                         associatedTypeRequirement);
+}
+
+const void *echo_swift_getAssociatedConformanceWitness(
+    const void *witnessTable, const void *conformingType,
+    const void *associatedType, const void *requirementBase,
+    const void *associatedConformanceRequirement) {
+  return swift_getAssociatedConformanceWitness(
+      witnessTable, conformingType, associatedType, requirementBase,
+      associatedConformanceRequirement);
 }
 
 #if defined(__arm64e__)

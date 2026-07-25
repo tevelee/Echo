@@ -90,6 +90,15 @@ MetadataResponse echo_swift_getAssociatedTypeWitness(
     size_t request, const void *witnessTable, const void *conformingType,
     const void *requirementBase, const void *associatedTypeRequirement);
 
+// WitnessTable *swift_getAssociatedConformanceWitness(
+//   WitnessTable *witnessTable, Metadata *conformingType,
+//   Metadata *associatedType, ProtocolRequirement *requirementBase,
+//   ProtocolRequirement *associatedConformanceRequirement);
+const void *echo_swift_getAssociatedConformanceWitness(
+    const void *witnessTable, const void *conformingType,
+    const void *associatedType, const void *requirementBase,
+    const void *associatedConformanceRequirement);
+
 //===----------------------------------------------------------------------===//
 // Casting
 //===----------------------------------------------------------------------===//
