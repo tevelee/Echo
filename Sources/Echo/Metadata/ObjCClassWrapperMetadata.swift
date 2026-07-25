@@ -45,9 +45,7 @@ public struct ObjCClassWrapperMetadata: Metadata, LayoutWrapper {
   ///       // conformances is now outdated! Refresh it by calling this again.
   ///       conformances = metadata.conformances
   public var conformances: [ConformanceDescriptor] {
-    conformanceLock.withLock {
-      Echo.conformances[ptr, default: []]
-    }
+    return imageInspectionStorage.conformances(for: ptr)
   }
 }
 

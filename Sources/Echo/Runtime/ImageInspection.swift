@@ -43,9 +43,7 @@ func refreshLoadedImages() {
 public var protocols: [ProtocolDescriptor] {
   refreshLoadedImages()
   
-  let protos = protocolLock.withLock {
-    _protocols
-  }
+  let protos = imageInspectionStorage.protocols
   
   return Array(unsafeUninitializedCapacity: protos.count) {
     for (i, proto) in protos.enumerated() {
@@ -56,27 +54,19 @@ public var protocols: [ProtocolDescriptor] {
   }
 }
 
-let protocolLock = NSLock()
-var _protocols = Set<UnsafeRawPointer>()
-
 @_cdecl("registerProtocols")
 public func registerProtocols(section: UnsafeRawPointer, size: Int) {
   for i in 0 ..< size / 4 {
     let start = section.offset(of: i, as: Int32.self)
     let ptr = start.relativeDirectAddress(as: _ProtocolDescriptor.self)
     
-    _ = protocolLock.withLock {
-      _protocols.insert(ptr)
-    }
+    imageInspectionStorage.insertProtocol(ptr)
   }
 }
 
 //===----------------------------------------------------------------------===//
 // __swift5_proto/swift5_protocol_conformances
 //===----------------------------------------------------------------------===//
-
-let conformanceLock = NSLock()
-var conformances = [UnsafeRawPointer: [ConformanceDescriptor]]()
 
 @_cdecl("registerProtocolConformances")
 public func registerProtocolConformances(section: UnsafeRawPointer, size: Int) {
@@ -87,17 +77,13 @@ public func registerProtocolConformances(section: UnsafeRawPointer, size: Int) {
     
     #if canImport(ObjectiveC)
     if let objcClass = conformance.objcClass {
-      conformanceLock.withLock {
-        conformances[objcClass.ptr, default: []].append(conformance)
-      }
+      imageInspectionStorage.insert(conformance, for: objcClass.ptr)
       continue
     }
     #endif
     
     if let descriptor = conformance.contextDescriptor {
-      conformanceLock.withLock {
-        conformances[descriptor.ptr, default: []].append(conformance)
-      }
+      imageInspectionStorage.insert(conformance, for: descriptor.ptr)
     }
   }
 }
@@ -112,16 +98,7 @@ public func findConformance(
 ) -> ConformanceDescriptor? {
   refreshLoadedImages()
 
-  return conformanceLock.withLock {
-    for (_, confs) in conformances {
-      for conf in confs {
-        if conf.protocol == protocolDescriptor {
-          return conf
-        }
-      }
-    }
-    return nil
-  }
+  return imageInspectionStorage.findConformance(to: protocolDescriptor)
 }
 
 /// Finds a conformance descriptor for a protocol with the given name.
@@ -154,9 +131,7 @@ public func findConformance(toProtocolNamed protocolName: String) -> Conformance
 public var types: [ContextDescriptor] {
   refreshLoadedImages()
   
-  let types = typeLock.withLock {
-    _types
-  }
+  let types = imageInspectionStorage.types
   
   var result = [ContextDescriptor]()
   result.reserveCapacity(types.count)
@@ -167,9 +142,6 @@ public var types: [ContextDescriptor] {
   
   return result
 }
-
-let typeLock = NSLock()
-var _types = Set<UnsafeRawPointer>()
 
 @_cdecl("registerTypeMetadata")
 public func registerTypeMetadata(section: UnsafeRawPointer, size: Int) {
@@ -202,9 +174,7 @@ public func registerTypeMetadata(section: UnsafeRawPointer, size: Int) {
       continue
     }
 
-    _ = typeLock.withLock {
-      _types.insert(ptr)
-    }
+    imageInspectionStorage.insertType(ptr)
   }
 }
 
@@ -255,18 +225,85 @@ public func lookupSection(
 
 #if os(Linux) || os(Android)
 
-let sharedObjectLock = NSLock()
-var sharedObjects = Set<String>()
-
 @_cdecl("cacheSharedObject")
 func cacheSharedObject(cString: UnsafePointer<CChar>) -> Bool {
   let str = String(cString: cString)
-  
-  let entry = sharedObjectLock.withLock {
-    sharedObjects.insert(str)
-  }
+  let entry = imageInspectionStorage.insertSharedObject(str)
   
   return entry.inserted
 }
 
 #endif
+
+/// Owns the process-wide image indexes used by the C and ELF callbacks.
+///
+/// Every mutable collection is accessed while holding its corresponding lock.
+/// The callbacks may arrive from arbitrary loader threads, so this reference
+/// type is explicitly marked `@unchecked Sendable` after establishing that
+/// synchronization boundary.
+final class ImageInspectionStorage: @unchecked Sendable {
+  private let protocolLock = NSLock()
+  private var storedProtocols = Set<UnsafeRawPointer>()
+
+  private let conformanceLock = NSLock()
+  private var storedConformances = [UnsafeRawPointer: [ConformanceDescriptor]]()
+
+  private let typeLock = NSLock()
+  private var storedTypes = Set<UnsafeRawPointer>()
+
+  private let sharedObjectLock = NSLock()
+  private var storedSharedObjects = Set<String>()
+
+  var protocols: Set<UnsafeRawPointer> {
+    protocolLock.withLock { storedProtocols }
+  }
+
+  var types: Set<UnsafeRawPointer> {
+    typeLock.withLock { storedTypes }
+  }
+
+  func insertProtocol(_ pointer: UnsafeRawPointer) {
+    _ = protocolLock.withLock {
+      storedProtocols.insert(pointer)
+    }
+  }
+
+  func insert(_ conformance: ConformanceDescriptor, for key: UnsafeRawPointer) {
+    conformanceLock.withLock {
+      storedConformances[key, default: []].append(conformance)
+    }
+  }
+
+  func conformances(for key: UnsafeRawPointer) -> [ConformanceDescriptor] {
+    conformanceLock.withLock {
+      storedConformances[key, default: []]
+    }
+  }
+
+  func findConformance(
+    to protocolDescriptor: ProtocolDescriptor
+  ) -> ConformanceDescriptor? {
+    conformanceLock.withLock {
+      for conformances in storedConformances.values {
+        if let conformance = conformances.first(where: { $0.protocol == protocolDescriptor }) {
+          return conformance
+        }
+      }
+      return nil
+    }
+  }
+
+  func insertType(_ pointer: UnsafeRawPointer) {
+    _ = typeLock.withLock {
+      storedTypes.insert(pointer)
+    }
+  }
+
+  func insertSharedObject(_ path: String) -> (inserted: Bool, memberAfterInsert: String) {
+    sharedObjectLock.withLock {
+      storedSharedObjects.insert(path)
+    }
+  }
+}
+
+let imageInspectionStorage = ImageInspectionStorage()

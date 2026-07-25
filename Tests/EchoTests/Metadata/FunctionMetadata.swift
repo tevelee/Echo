@@ -12,7 +12,11 @@ extension EchoTests {
     
     let metadata = maybeMetadata!
     
-    XCTAssertEqual(metadata.flags.bits, 100663298)
+    XCTAssertEqual(metadata.flags.numParams, 2)
+    XCTAssertEqual(metadata.flags.convention, .swift)
+    XCTAssertFalse(metadata.flags.throws)
+    XCTAssertTrue(metadata.flags.hasParamFlags)
+    XCTAssertTrue(metadata.flags.isEscaping)
     XCTAssert(typeArraysEquals(metadata.paramTypes, [Int.self, Int.self]))
     XCTAssert(metadata.resultType == Int.self)
     XCTAssertEqual(metadata.kind, .function)

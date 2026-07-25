@@ -2,7 +2,7 @@ import XCTest
 import Echo
 
 final class EchoTests: XCTestCase {
-  static var allTests = [
+  static let allTests = [
     // Context Descriptors
     
     ("testAnonymousDescriptor", testAnonymousDescriptor),

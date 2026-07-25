@@ -1,6 +1,14 @@
 import XCTest
 import Echo
 
+private struct WheelContainer {
+  let value: any Wheel
+}
+
+private struct DualWheelContainer {
+  let value: any Wheel & DumbWheel
+}
+
 extension EchoTests {
   func testExistentialContainer() throws {
     // NO WITNESS TABLE
@@ -14,8 +22,8 @@ extension EchoTests {
     
     // SINGLE WITNESS TABLE
     
-    let y: Wheel = CheeseWheel()
-    var yBox = unsafeBitCast(y, to: ExistentialContainer.self)
+    let y: any Wheel = CheeseWheel()
+    var yBox = unsafeBitCast(WheelContainer(value: y), to: ExistentialContainer.self)
     let yPtr = yBox.base.projectValue()
     
     XCTAssert(yBox.base.type == CheeseWheel.self)
@@ -24,8 +32,8 @@ extension EchoTests {
     
     // DUAL WITNESS TABLE
     
-    let z: Wheel & DumbWheel = CheeseWheel()
-    var zBox = unsafeBitCast(z, to: DualExistentialContainer.self)
+    let z: any Wheel & DumbWheel = CheeseWheel()
+    var zBox = unsafeBitCast(DualWheelContainer(value: z), to: DualExistentialContainer.self)
     let zPtr = zBox.base.projectValue()
     
     XCTAssert(zBox.base.type == CheeseWheel.self)

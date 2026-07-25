@@ -40,9 +40,7 @@ extension TypeMetadata {
         return []
     }
     
-    return conformanceLock.withLock {
-      Echo.conformances[contextDescriptorPtr, default: []]
-    }
+    return imageInspectionStorage.conformances(for: contextDescriptorPtr)
   }
   
   /// The base type context descriptor for this type metadata record.
@@ -136,9 +134,7 @@ extension TypeMetadata {
   public func type(
     of mangledName: UnsafeRawPointer
   ) -> Any.Type? {
-    let entry = mangledNameLock.withLock {
-      mangledNames[mangledName]
-    }
+    let entry = mangledNameCache.value(for: mangledName)
     
     if entry != nil {
       return entry!
@@ -157,13 +153,29 @@ extension TypeMetadata {
       genericArguments: genericArgumentPtr
     )
     
-    mangledNameLock.withLock {
-      mangledNames[mangledName] = type
-    }
+    mangledNameCache.insert(type, for: mangledName)
     
     return type
   }
 }
 
-let mangledNameLock = NSLock()
-var mangledNames = [UnsafeRawPointer: Any.Type?]()
+/// Caches resolved symbolic names behind a lock because metadata queries can
+/// be initiated concurrently by the runtime.
+private final class MangledNameCache: @unchecked Sendable {
+  private let lock = NSLock()
+  private var values = [UnsafeRawPointer: Any.Type?]()
+
+  func value(for mangledName: UnsafeRawPointer) -> Any.Type? {
+    lock.withLock {
+      values[mangledName] ?? nil
+    }
+  }
+
+  func insert(_ type: Any.Type?, for mangledName: UnsafeRawPointer) {
+    lock.withLock {
+      values[mangledName] = type
+    }
+  }
+}
+
+private let mangledNameCache = MangledNameCache()

@@ -147,7 +147,14 @@ public func reflectStruct(_ instance: Any) -> StructMetadata? {
 /// - Parameter instance: Some instance of `Any`
 /// - Returns: The existential container that said instance represents.
 public func container(for instance: Any) -> AnyExistentialContainer {
-  var box = unsafeBitCast(instance, to: AnyExistentialContainer.self)
+  // Swift 6 may implicitly open an existential passed as `Any`. Re-erasing it
+  // into a statically-known wrapper preserves the four-word existential
+  // container before projecting its ABI layout.
+  struct Container {
+    let value: Any
+  }
+
+  var box = unsafeBitCast(Container(value: instance), to: AnyExistentialContainer.self)
   
   while box.type == Any.self {
     box = box.projectValue().load(as: AnyExistentialContainer.self)
