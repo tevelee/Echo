@@ -46,4 +46,41 @@ extension EchoTests {
     #expect(continuation.isPreawaited)
     #expect(continuation.isExecutorSwitchForced)
   }
+
+  @Test
+  func executorReferencesDecodeImmediateDefaultAndCustomExecutors() {
+    let immediate = SerialExecutorReference(identity: nil, implementation: 2)
+    #expect(immediate.isGeneric)
+    #expect(immediate.isSynchronousStart)
+    #expect(immediate.kind == .immediate)
+    #expect(immediate.witnessTable == nil)
+
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 16, alignment: 8)
+    defer { storage.deallocate() }
+
+    let defaultActor = SerialExecutorReference(
+      identity: UnsafeRawPointer(storage), implementation: 0
+    )
+    #expect(defaultActor.isDefaultActor)
+    #expect(defaultActor.witnessTable == nil)
+
+    let complex = SerialExecutorReference(
+      identity: UnsafeRawPointer(storage),
+      implementation: UInt(bitPattern: UnsafeRawPointer(storage)) | 1
+    )
+    #expect(complex.kind == .complexEquality)
+    #expect(complex.witnessTable == UnsafeRawPointer(storage))
+
+    let undefined = TaskExecutorReference(identity: nil, implementation: 0)
+    #expect(undefined.isUndefined)
+    #expect(undefined.witnessTable == nil)
+
+    let taskExecutor = TaskExecutorReference(
+      identity: UnsafeRawPointer(storage),
+      implementation: UInt(bitPattern: UnsafeRawPointer(storage))
+    )
+    #expect(taskExecutor.isDefined)
+    #expect(taskExecutor.kind == .ordinary)
+    #expect(taskExecutor.witnessTable == UnsafeRawPointer(storage))
+  }
 }

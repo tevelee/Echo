@@ -235,3 +235,94 @@ public enum ContinuationStatus: UInt, Sendable {
   case awaited = 1
   case resumed = 2
 }
+
+/// An unmanaged reference to a serial executor.
+///
+/// This is the ABI representation used for actor and executor hops. Its
+/// identity is not necessarily Swift reference-countable, so Echo treats it as
+/// a borrowed raw address.
+public struct SerialExecutorReference: Equatable {
+  /// The executor identity, or `nil` for the generic executor.
+  public let identity: UnsafeRawPointer?
+
+  /// Raw implementation word, including the low-bit kind tag.
+  public let implementation: UInt
+
+  /// Creates a serial-executor reference from its runtime fields.
+  public init(identity: UnsafeRawPointer?, implementation: UInt) {
+    self.identity = identity
+    self.implementation = implementation
+  }
+
+  /// Whether this is a generic executor reference.
+  public var isGeneric: Bool { identity == nil }
+
+  /// Whether this identifies a default actor executor.
+  public var isDefaultActor: Bool { identity != nil && implementation == 0 }
+
+  /// Whether this is the special executor used by `Task.immediate`.
+  public var isSynchronousStart: Bool {
+    identity == nil && kind == .immediate
+  }
+
+  /// The executor behavior tag, or `nil` for a future runtime-defined tag.
+  public var kind: Kind? {
+    Kind(rawValue: implementation & 0x7)
+  }
+
+  /// The masked serial-executor witness-table address, if this is a custom
+  /// serial executor. Its entries remain runtime-private.
+  public var witnessTable: UnsafeRawPointer? {
+    guard isGeneric == false, isDefaultActor == false else { return nil }
+    return UnsafeRawPointer(bitPattern: implementation & ~UInt(0x7))
+  }
+}
+
+extension SerialExecutorReference {
+  /// Behaviors tagged in the low bits of a serial-executor implementation.
+  public enum Kind: UInt, Sendable {
+    case ordinary = 0
+    case complexEquality = 1
+    case immediate = 2
+  }
+}
+
+/// An unmanaged reference to a preferred task executor.
+public struct TaskExecutorReference: Equatable {
+  /// The task-executor identity, or `nil` when no preference is defined.
+  public let identity: UnsafeRawPointer?
+
+  /// Raw implementation word, including its low-bit kind tag.
+  public let implementation: UInt
+
+  /// Creates a task-executor reference from its runtime fields.
+  public init(identity: UnsafeRawPointer?, implementation: UInt) {
+    self.identity = identity
+    self.implementation = implementation
+  }
+
+  /// Whether no task-executor preference is defined.
+  public var isUndefined: Bool { identity == nil }
+
+  /// Whether a task-executor preference is defined.
+  public var isDefined: Bool { isUndefined == false }
+
+  /// The executor behavior tag, or `nil` for a future runtime-defined tag.
+  public var kind: Kind? {
+    Kind(rawValue: implementation & 0x7)
+  }
+
+  /// The masked task-executor witness-table address, if defined. Its entries
+  /// remain runtime-private.
+  public var witnessTable: UnsafeRawPointer? {
+    guard isDefined else { return nil }
+    return UnsafeRawPointer(bitPattern: implementation & ~UInt(0x7))
+  }
+}
+
+extension TaskExecutorReference {
+  /// The only task-executor behavior currently defined by the Swift runtime.
+  public enum Kind: UInt, Sendable {
+    case ordinary = 0
+  }
+}
