@@ -4,6 +4,15 @@ import Testing
 
 extension EchoTests {
   @Test
+  func contextDescriptorReservedBitsAreNotACompatibilityVersion() {
+    let flags = ContextDescriptorFlags(
+      bits: UInt32(ContextDescriptorKind.struct.rawValue) | (UInt32(0xA5) << 8)
+    )
+
+    #expect(flags.reservedBits == 0xA5)
+  }
+
+  @Test
   func nominalMetadataExposesLayoutStringOnlyWhenAdvertised() {
     let storage = UnsafeMutableRawPointer.allocate(byteCount: 256, alignment: 8)
     defer { storage.deallocate() }

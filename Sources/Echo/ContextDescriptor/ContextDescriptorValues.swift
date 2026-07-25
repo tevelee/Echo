@@ -58,9 +58,22 @@ public struct ContextDescriptorFlags {
     bits & 0x80 != 0
   }
   
-  /// The version number for this context descriptor.
-  public var version: UInt8 {
+  /// Reserved bits in the context-descriptor ABI.
+  ///
+  /// These bits were formerly interpreted as a descriptor version. Modern
+  /// Swift leaves them reserved, so their value must not drive compatibility
+  /// decisions.
+  public var reservedBits: UInt8 {
     UInt8((bits >> 0x8) & 0xFF)
+  }
+
+  /// The former version field for this context descriptor.
+  ///
+  /// Modern Swift reserves these bits. Use `reservedBits` only for raw ABI
+  /// inspection, never for a compatibility decision.
+  @available(*, deprecated, message: "Context descriptors no longer have a version field; use reservedBits only for raw ABI inspection.")
+  public var version: UInt8 {
+    reservedBits
   }
   
   var kindSpecificFlags: UInt16 {
