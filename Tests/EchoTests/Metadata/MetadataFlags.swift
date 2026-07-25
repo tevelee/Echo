@@ -64,6 +64,14 @@ extension EchoTests {
     MetadataFlagsTests.testValueWitnessCopyability()
     MetadataFlagsTests.testFunctionFlags()
     MetadataFlagsTests.testActorFlags()
+
+    let staticSpecialization = ClassMetadata.Flags(bits: 0x8)
+    #expect(staticSpecialization.isStaticSpecialization)
+    #expect(staticSpecialization.isCanonicalStaticSpecialization == false)
+
+    let canonicalSpecialization = ClassMetadata.Flags(bits: 0x18)
+    #expect(canonicalSpecialization.isStaticSpecialization)
+    #expect(canonicalSpecialization.isCanonicalStaticSpecialization)
   }
 
   @Test

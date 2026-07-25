@@ -140,6 +140,18 @@ extension ClassMetadata {
     public var hasCustomObjCName: Bool {
       bits & 0x4 != 0
     }
+
+    /// Whether this metadata is a generic specialization created during
+    /// compilation.
+    public var isStaticSpecialization: Bool {
+      bits & 0x8 != 0
+    }
+
+    /// Whether this compiled generic specialization was made canonical by its
+    /// metadata accessor.
+    public var isCanonicalStaticSpecialization: Bool {
+      bits & 0x10 != 0
+    }
   }
 }
 
