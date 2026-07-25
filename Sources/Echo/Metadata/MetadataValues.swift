@@ -280,6 +280,21 @@ extension FunctionMetadata {
     public var isAutoclosure: Bool {
       bits & 0x100 != 0
     }
+
+    /// Whether this parameter is excluded from automatic differentiation.
+    public var isNoDerivative: Bool {
+      bits & 0x200 != 0
+    }
+
+    /// Whether this parameter is isolated to an actor.
+    public var isIsolated: Bool {
+      bits & 0x400 != 0
+    }
+
+    /// Whether ownership is transferred to this parameter using `sending`.
+    public var isSending: Bool {
+      bits & 0x800 != 0
+    }
   }
 }
 

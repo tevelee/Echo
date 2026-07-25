@@ -139,6 +139,25 @@ extension FunctionMetadata {
     return trailing.load(fromByteOffset: offset, as: Any.Type.self)
   }
 
+  /// The differentiability kind recorded for this function type.
+  ///
+  /// A non-differentiable function does not carry a trailing record and is
+  /// reported as `.nonDifferentiable`. `nil` denotes a future ABI value Echo
+  /// does not yet understand.
+  public var differentiabilityKind: DifferentiabilityKind? {
+    guard flags.isDifferentiable else { return .nonDifferentiable }
+
+    let pointerSize = MemoryLayout<UnsafeRawPointer>.size
+    let parameterFlagsSize = flags.hasParamFlags
+      ? flags.numParams * MemoryLayout<UInt32>.size
+      : 0
+    let offset = flags.numParams * pointerSize + parameterFlagsSize
+    let alignedOffset = (offset + pointerSize - 1) & ~(pointerSize - 1)
+    return DifferentiabilityKind(
+      rawValue: trailing.load(fromByteOffset: alignedOffset, as: UInt.self)
+    )
+  }
+
   /// The extended function-type flags, if the metadata carries them.
   public var extendedFlags: ExtendedFunctionTypeFlags? {
     guard let offset = trailingFieldOffsets().extendedFlags else {
@@ -211,6 +230,17 @@ public struct InvertibleProtocolSet {
 }
 
 extension FunctionMetadata: Equatable {}
+
+extension FunctionMetadata {
+  /// The automatic-differentiation kind encoded in function metadata.
+  public enum DifferentiabilityKind: UInt {
+    case nonDifferentiable = 0
+    case forward = 1
+    case reverse = 2
+    case normal = 3
+    case linear = 4
+  }
+}
 
 struct _FunctionMetadata {
   let _kind: Int

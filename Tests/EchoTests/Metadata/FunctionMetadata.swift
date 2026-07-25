@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import Echo
+@testable import Echo
 
 func add(_ x: Int, _ y: Int...) -> Int {
   fatalError()
@@ -42,5 +42,33 @@ extension EchoTests {
     #expect(metadata.vwt.size == 16)
     #expect(metadata.vwt.stride == 16)
     #expect(metadata.vwt.flags.bits == 65543)
+  }
+
+  @Test
+  func functionMetadataDecodesModernParameterAndDifferentiabilityFlags() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 64, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 64)
+    defer { storage.deallocate() }
+
+    let flags = FunctionMetadata.Flags(bits: 0xA000001)
+    storage.storeBytes(
+      of: _FunctionMetadata(
+        _kind: MetadataKind.function.rawValue,
+        _flags: flags,
+        _result: Int.self
+      ),
+      as: _FunctionMetadata.self
+    )
+    storage.storeBytes(of: Int.self, toByteOffset: 24, as: Any.Type.self)
+    storage.storeBytes(of: UInt32(0xE03), toByteOffset: 32, as: UInt32.self)
+    storage.storeBytes(of: UInt(2), toByteOffset: 40, as: UInt.self)
+
+    let metadata = FunctionMetadata(ptr: UnsafeRawPointer(storage))
+    let parameter = metadata.paramFlags[0]
+    #expect(parameter.valueOwnership == .owned)
+    #expect(parameter.isNoDerivative)
+    #expect(parameter.isIsolated)
+    #expect(parameter.isSending)
+    #expect(metadata.differentiabilityKind == .reverse)
   }
 }
