@@ -118,6 +118,30 @@ public struct ExtendedExistentialTypeShape: LayoutWrapper {
     return loadRequirements(at: offset, count: Int(signature.numRequirements))
   }
 
+  /// The pack-shape header for the generalization signature, if it contains
+  /// type parameter packs.
+  public var generalizationPackShapeHeader: GenericPackShapeHeader? {
+    guard let offset = generalizationPackShapeHeaderOffset else { return nil }
+    return (ptr + offset).load(as: GenericPackShapeHeader.self)
+  }
+
+  /// Shape descriptors for each pack in the generalization signature.
+  public var generalizationPackShapeDescriptors: [GenericPackShapeDescriptor] {
+    guard let offset = generalizationPackShapeDescriptorsOffset,
+          let header = generalizationPackShapeHeader
+    else { return [] }
+
+    return Array(unsafeUninitializedCapacity: Int(header.numPacks)) {
+      for index in 0 ..< Int(header.numPacks) {
+        $0[index] = (ptr + offset).load(
+          fromByteOffset: index * MemoryLayout<GenericPackShapeDescriptor>.stride,
+          as: GenericPackShapeDescriptor.self
+        )
+      }
+      $1 = Int(header.numPacks)
+    }
+  }
+
   /// The optional mangled type subexpression, if the shape stores one.
   public var typeExpressionMangledName: UnsafeRawPointer? {
     guard flags.hasTypeExpression else { return nil }
@@ -166,6 +190,32 @@ public struct ExtendedExistentialTypeShape: LayoutWrapper {
         : Int(generalizationSignature?.numParams ?? 0))
     let alignment = MemoryLayout<_GenericRequirementDescriptor>.alignment
     return (parameterEnd + alignment - 1) & -alignment
+  }
+
+  private var generalizationPackShapeHeaderOffset: Int? {
+    guard flags.hasGeneralizationSignature, flags.hasTypePacks else {
+      return nil
+    }
+    let requirementsEnd = requirementRequirementsOffset
+      + requirementCount * MemoryLayout<_GenericRequirementDescriptor>.stride
+      + Int(generalizationSignature?.numRequirements ?? 0)
+        * MemoryLayout<_GenericRequirementDescriptor>.stride
+    return aligned(requirementsEnd, for: GenericPackShapeHeader.self)
+  }
+
+  private var generalizationPackShapeDescriptorsOffset: Int? {
+    guard let headerOffset = generalizationPackShapeHeaderOffset else {
+      return nil
+    }
+    return aligned(
+      headerOffset + MemoryLayout<GenericPackShapeHeader>.stride,
+      for: GenericPackShapeDescriptor.self
+    )
+  }
+
+  private func aligned<T>(_ offset: Int, for: T.Type) -> Int {
+    let alignment = MemoryLayout<T>.alignment
+    return (offset + alignment - 1) & -alignment
   }
 
   private func loadParameters(

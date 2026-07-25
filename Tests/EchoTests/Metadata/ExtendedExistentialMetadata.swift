@@ -18,6 +18,47 @@ extension EchoTests {
   }
 
   @Test
+  func extendedExistentialShapeDecodesGeneralizationPackShapes() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 64, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 64)
+    defer { storage.deallocate() }
+
+    storage.storeBytes(
+      of: _ExtendedExistentialTypeShape(
+        _flags: ExtendedExistentialTypeShape.Flags(bits: 0x2100),
+        _existentialType: RelativeDirectPointer<CChar>(offset: 0),
+        _requirementSignature: _GenericContextDescriptorHeader(
+          _numParams: 0,
+          _numRequirements: 0,
+          _numKeyArguments: 0,
+          _numExtraArguments: 0
+        )
+      ),
+      as: _ExtendedExistentialTypeShape.self
+    )
+    storage.storeBytes(
+      of: GenericPackShapeHeader(numPacks: 2, numShapeClasses: 1),
+      toByteOffset: 24,
+      as: GenericPackShapeHeader.self
+    )
+    storage.storeBytes(of: UInt16(0), toByteOffset: 28, as: UInt16.self)
+    storage.storeBytes(of: UInt16(3), toByteOffset: 30, as: UInt16.self)
+    storage.storeBytes(of: UInt16(0), toByteOffset: 32, as: UInt16.self)
+    storage.storeBytes(of: UInt16(1), toByteOffset: 36, as: UInt16.self)
+    storage.storeBytes(of: UInt16(4), toByteOffset: 38, as: UInt16.self)
+    storage.storeBytes(of: UInt16(0), toByteOffset: 40, as: UInt16.self)
+
+    let shape = ExtendedExistentialTypeShape(ptr: UnsafeRawPointer(storage))
+    #expect(shape.generalizationPackShapeHeader?.numPacks == 2)
+    #expect(shape.generalizationPackShapeHeader?.numShapeClasses == 1)
+    #expect(shape.generalizationPackShapeDescriptors.count == 2)
+    #expect(shape.generalizationPackShapeDescriptors[0].kind == .metadata)
+    #expect(shape.generalizationPackShapeDescriptors[0].index == 3)
+    #expect(shape.generalizationPackShapeDescriptors[1].kind == .witnessTable)
+    #expect(shape.generalizationPackShapeDescriptors[1].index == 4)
+  }
+
+  @Test
   func unknownMetadataKindFailsClosed() {
     let storage = UnsafeMutableRawPointer.allocate(
       byteCount: MemoryLayout<Int>.size,
