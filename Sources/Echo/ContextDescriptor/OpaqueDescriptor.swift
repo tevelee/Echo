@@ -43,6 +43,28 @@ public struct OpaqueDescriptor: ContextDescriptor, LayoutWrapper {
       $1 = numUnderlyingTypes
     }
   }
+
+  /// Resolves an underlying opaque type in this descriptor's generic context.
+  ///
+  /// Opaque descriptors store type identities as symbolic mangled names. For
+  /// a generic opaque declaration, pass its ABI generic argument buffer in
+  /// the order described by `genericContext`; non-generic opaque declarations
+  /// need no arguments.
+  public func underlyingType(
+    at index: Int,
+    genericArguments: UnsafeRawPointer? = nil
+  ) -> Any.Type? {
+    guard underlyingTypeMangledNames.indices.contains(index) else { return nil }
+
+    let mangledName = underlyingTypeMangledNames[index]
+    let length = getSymbolicMangledNameLength(mangledName)
+    return _getTypeByMangledNameInContext(
+      mangledName.assumingMemoryBound(to: UInt8.self),
+      UInt(length),
+      genericContext: flags.isGeneric ? genericContext?.ptr : nil,
+      genericArguments: genericArguments
+    )
+  }
 }
 
 extension OpaqueDescriptor: Equatable {}
