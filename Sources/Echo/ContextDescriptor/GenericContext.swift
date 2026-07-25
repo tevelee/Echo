@@ -90,7 +90,7 @@ public struct GenericContext: LayoutWrapper {
   /// Number of bytes this generic context is.
   public var size: Int {
     let base = MemoryLayout<_GenericContextDescriptorHeader>.size
-    return base + parameterSize + requirementSize + packShapeSize
+    return base + trailingLayout.size
   }
 
   /// Flags describing the trailing records carried by this generic context.
@@ -100,43 +100,222 @@ public struct GenericContext: LayoutWrapper {
 
   /// The pack-shape header for a variadic-generic context, if present.
   public var packShapeHeader: GenericPackShapeHeader? {
-    guard descriptorFlags.hasTypePacks else {
-      return nil
-    }
-
-    return (trailing + parameterSize + requirementSize)
-      .load(as: GenericPackShapeHeader.self)
+    guard let offset = trailingLayout.packShapeHeader else { return nil }
+    return (trailing + offset).load(as: GenericPackShapeHeader.self)
   }
 
   /// Shape descriptors for each metadata or witness-table pack in this
   /// context. The ABI records one descriptor per pack, not per shape class.
   public var packShapeDescriptors: [GenericPackShapeDescriptor] {
-    guard let header = packShapeHeader else {
-      return []
+    guard let offset = trailingLayout.packShapeDescriptors,
+          let header = packShapeHeader
+    else { return [] }
+
+    return loadTrailing(
+      from: offset,
+      count: Int(header.numPacks),
+      as: GenericPackShapeDescriptor.self
+    )
+  }
+
+  /// The protocols with conditional requirements in this generic context.
+  ///
+  /// The presence of this record is controlled by
+  /// `descriptorFlags.hasConditionalInvertedProtocols`. The individual
+  /// requirement counts are cumulative and are available through
+  /// `conditionalInvertedProtocolRequirementCounts`.
+  public var conditionalInvertedProtocols: InvertibleProtocolSet? {
+    guard let offset = trailingLayout.conditionalInvertedProtocols else {
+      return nil
     }
 
-    let base = trailing + parameterSize + requirementSize
-      + MemoryLayout<GenericPackShapeHeader>.size
-    let count = Int(header.numPacks)
+    return InvertibleProtocolSet(bits: (trailing + offset).load(as: UInt16.self))
+  }
 
-    return Array(unsafeUninitializedCapacity: count) {
+  /// Cumulative requirement counts for each conditional inverted protocol.
+  ///
+  /// An empty array is returned when no conditional inverted-protocol record
+  /// is present or its cumulative counts are invalid.
+  public var conditionalInvertedProtocolRequirementCounts: [UInt16] {
+    guard let offset = trailingLayout.conditionalRequirementCounts,
+          let protocols = conditionalInvertedProtocols
+    else { return [] }
+
+    return loadTrailing(
+      from: offset,
+      count: protocols.bits.nonzeroBitCount,
+      as: UInt16.self
+    )
+  }
+
+  /// Requirements associated with `conditionalInvertedProtocols`.
+  ///
+  /// The final cumulative count determines the number of records. Invalid
+  /// cumulative counts are treated as no readable trailing requirements.
+  public var conditionalInvertedProtocolRequirements: [GenericRequirementDescriptor] {
+    guard let offset = trailingLayout.conditionalRequirements else { return [] }
+
+    return Array(unsafeUninitializedCapacity: trailingLayout.conditionalRequirementCount) {
+      for index in 0 ..< trailingLayout.conditionalRequirementCount {
+        let address = (trailing + offset).advanced(
+          by: index * MemoryLayout<_GenericRequirementDescriptor>.stride
+        )
+        $0[index] = GenericRequirementDescriptor(ptr: address)
+      }
+      $1 = trailingLayout.conditionalRequirementCount
+    }
+  }
+
+  /// The header for value generic parameters, if the context contains them.
+  public var genericValueHeader: GenericValueHeader? {
+    guard let offset = trailingLayout.genericValueHeader else { return nil }
+    return (trailing + offset).load(as: GenericValueHeader.self)
+  }
+
+  /// Descriptors for value generic parameters.
+  public var genericValueDescriptors: [GenericValueDescriptor] {
+    guard let offset = trailingLayout.genericValueDescriptors,
+          genericValueHeader != nil
+    else { return [] }
+
+    return loadTrailing(
+      from: offset,
+      count: trailingLayout.genericValueDescriptorCount,
+      as: GenericValueDescriptor.self
+    )
+  }
+
+  private func loadTrailing<T>(from offset: Int, count: Int, as: T.Type) -> [T] {
+    Array(unsafeUninitializedCapacity: count) {
       for index in 0 ..< count {
-        $0[index] = base.load(
-          fromByteOffset: index * MemoryLayout<GenericPackShapeDescriptor>.stride,
-          as: GenericPackShapeDescriptor.self
+        $0[index] = (trailing + offset).load(
+          fromByteOffset: index * MemoryLayout<T>.stride,
+          as: T.self
         )
       }
       $1 = count
     }
   }
 
-  private var packShapeSize: Int {
-    guard let header = packShapeHeader else {
-      return 0
+  private var trailingLayout: TrailingLayout {
+    var cursor = parameterSize + requirementSize
+    var packShapeHeader: Int?
+    var packShapeDescriptors: Int?
+    var conditionalInvertedProtocols: Int?
+    var conditionalRequirementCounts: Int?
+    var conditionalRequirements: Int?
+    var conditionalRequirementCount = 0
+    var genericValueHeader: Int?
+    var genericValueDescriptors: Int?
+    var genericValueDescriptorCount = 0
+
+    if descriptorFlags.hasTypePacks {
+      cursor = aligned(cursor, for: GenericPackShapeHeader.self)
+      packShapeHeader = cursor
+      let header = (trailing + cursor).load(as: GenericPackShapeHeader.self)
+      cursor += MemoryLayout<GenericPackShapeHeader>.stride
+
+      cursor = aligned(cursor, for: GenericPackShapeDescriptor.self)
+      packShapeDescriptors = cursor
+      cursor += Int(header.numPacks) * MemoryLayout<GenericPackShapeDescriptor>.stride
     }
 
-    return MemoryLayout<GenericPackShapeHeader>.size
-      + Int(header.numPacks) * MemoryLayout<GenericPackShapeDescriptor>.stride
+    if descriptorFlags.hasConditionalInvertedProtocols {
+      cursor = aligned(cursor, for: UInt16.self)
+      conditionalInvertedProtocols = cursor
+      let protocols = (trailing + cursor).load(as: UInt16.self)
+      cursor += MemoryLayout<UInt16>.stride
+
+      let countCount = protocols.nonzeroBitCount
+      cursor = aligned(cursor, for: UInt16.self)
+      conditionalRequirementCounts = cursor
+      let counts = loadTrailing(from: cursor, count: countCount, as: UInt16.self)
+      cursor += countCount * MemoryLayout<UInt16>.stride
+
+      guard counts.indices.dropFirst().allSatisfy({ counts[$0 - 1] <= counts[$0] }) else {
+        return TrailingLayout(size: cursor)
+      }
+
+      conditionalRequirementCount = Int(counts.last ?? 0)
+      cursor = aligned(cursor, for: _GenericRequirementDescriptor.self)
+      conditionalRequirements = cursor
+      cursor += conditionalRequirementCount * MemoryLayout<_GenericRequirementDescriptor>.stride
+    }
+
+    if descriptorFlags.hasValues {
+      cursor = aligned(cursor, for: GenericValueHeader.self)
+      genericValueHeader = cursor
+      let header = (trailing + cursor).load(as: GenericValueHeader.self)
+      cursor += MemoryLayout<GenericValueHeader>.stride
+
+      guard let descriptorCount = Int(exactly: header.numValues) else {
+        return TrailingLayout(size: cursor)
+      }
+
+      cursor = aligned(cursor, for: GenericValueDescriptor.self)
+      genericValueDescriptors = cursor
+      genericValueDescriptorCount = descriptorCount
+      cursor += descriptorCount * MemoryLayout<GenericValueDescriptor>.stride
+    }
+
+    return TrailingLayout(
+      packShapeHeader: packShapeHeader,
+      packShapeDescriptors: packShapeDescriptors,
+      conditionalInvertedProtocols: conditionalInvertedProtocols,
+      conditionalRequirementCounts: conditionalRequirementCounts,
+      conditionalRequirements: conditionalRequirements,
+      conditionalRequirementCount: conditionalRequirementCount,
+      genericValueHeader: genericValueHeader,
+      genericValueDescriptors: genericValueDescriptors,
+      genericValueDescriptorCount: genericValueDescriptorCount,
+      size: cursor
+    )
+  }
+
+  private func aligned<T>(_ offset: Int, for: T.Type) -> Int {
+    let alignment = MemoryLayout<T>.alignment
+    return (offset + alignment - 1) & -alignment
+  }
+
+  private struct TrailingLayout {
+    var packShapeHeader: Int?
+    var packShapeDescriptors: Int?
+    var conditionalInvertedProtocols: Int?
+    var conditionalRequirementCounts: Int?
+    var conditionalRequirements: Int?
+    var conditionalRequirementCount: Int = 0
+    var genericValueHeader: Int?
+    var genericValueDescriptors: Int?
+    var genericValueDescriptorCount: Int = 0
+    var size: Int
+
+    init(size: Int) {
+      self.size = size
+    }
+
+    init(
+      packShapeHeader: Int?,
+      packShapeDescriptors: Int?,
+      conditionalInvertedProtocols: Int?,
+      conditionalRequirementCounts: Int?,
+      conditionalRequirements: Int?,
+      conditionalRequirementCount: Int,
+      genericValueHeader: Int?,
+      genericValueDescriptors: Int?,
+      genericValueDescriptorCount: Int,
+      size: Int
+    ) {
+      self.packShapeHeader = packShapeHeader
+      self.packShapeDescriptors = packShapeDescriptors
+      self.conditionalInvertedProtocols = conditionalInvertedProtocols
+      self.conditionalRequirementCounts = conditionalRequirementCounts
+      self.conditionalRequirements = conditionalRequirements
+      self.conditionalRequirementCount = conditionalRequirementCount
+      self.genericValueHeader = genericValueHeader
+      self.genericValueDescriptors = genericValueDescriptors
+      self.genericValueDescriptorCount = genericValueDescriptorCount
+      self.size = size
+    }
   }
 }
 
@@ -191,6 +370,29 @@ public struct GenericPackShapeDescriptor {
   /// The kind of pack, or `nil` for an ABI kind Echo does not yet understand.
   public var kind: GenericPackKind? {
     GenericPackKind(rawValue: rawKind)
+  }
+}
+
+/// Header preceding the descriptors for value generic parameters.
+public struct GenericValueHeader {
+  /// Number of value generic parameters in the generic signature.
+  public let numValues: UInt32
+}
+
+/// The representation of a value generic parameter.
+public enum GenericValueType: UInt32 {
+  /// An integer value generic parameter.
+  case int = 0
+}
+
+/// Describes one value generic parameter.
+public struct GenericValueDescriptor {
+  private let rawType: UInt32
+
+  /// The parameter representation, or `nil` for an ABI value kind Echo does
+  /// not yet understand.
+  public var type: GenericValueType? {
+    GenericValueType(rawValue: rawType)
   }
 }
 
