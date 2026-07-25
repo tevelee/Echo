@@ -38,33 +38,52 @@ public struct StructDescriptor: TypeContextDescriptor, LayoutWrapper {
   /// The foreign metadata initialization info for this struct metadata, if it
   /// has any.
   public var foreignMetadataInitialization: ForeignMetadataInitialization? {
-    guard typeFlags.metadataInitKind == .foreign else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
+    guard let offset = trailingLayout.foreignMetadataInitialization else { return nil }
     return ForeignMetadataInitialization(ptr: trailing + offset)
   }
   
   /// The singleton metadata initialization info for this struct metadata, if it
   /// has any.
   public var singletonMetadataInitialization: SingletonMetadataInitialization? {
-    guard typeFlags.metadataInitKind == .singleton else {
-      return nil
-    }
-    
-    var offset = 0
-    
-    if flags.isGeneric {
-      offset += typeGenericContext.size
-    }
-    
+    guard let offset = trailingLayout.singletonMetadataInitialization else { return nil }
     return SingletonMetadataInitialization(ptr: trailing + offset)
+  }
+
+  /// Canonical metadata specializations emitted for this generic type.
+  public var canonicalMetadataPrespecializations: [Metadata] {
+    guard let offset = trailingLayout.canonicalMetadataList else { return [] }
+    return Array(unsafeUninitializedCapacity: trailingLayout.canonicalMetadataCount) {
+      for index in 0 ..< trailingLayout.canonicalMetadataCount {
+        let field = (trailing + offset).advanced(
+          by: index * MemoryLayout<RelativeDirectPointer<Void>>.stride
+        )
+        $0[index] = getMetadata(at: field.relativeDirectAddress(as: Void.self))
+      }
+      $1 = trailingLayout.canonicalMetadataCount
+    }
+  }
+
+  /// Capabilities this type's primary definition explicitly inverts.
+  public var invertedProtocols: InvertibleProtocolSet? {
+    guard let offset = trailingLayout.invertedProtocols else { return nil }
+    return InvertibleProtocolSet(bits: (trailing + offset).load(as: UInt16.self))
+  }
+
+  /// The directly stored singleton metadata, when the compiler emitted one.
+  public var singletonMetadata: Metadata? {
+    guard let offset = trailingLayout.singletonMetadata else { return nil }
+    let field = trailing + offset
+    return getMetadata(at: field.relativeDirectAddress(as: Void.self))
+  }
+
+  private var trailingLayout: ValueTypeDescriptorTrailingLayout {
+    ValueTypeDescriptorTrailingLayout(
+      trailing: trailing,
+      isGeneric: flags.isGeneric,
+      genericContextSize: flags.isGeneric ? typeGenericContext.size : 0,
+      typeFlags: typeFlags,
+      hasInvertibleProtocols: flags.hasInvertibleProtocols
+    )
   }
 }
 

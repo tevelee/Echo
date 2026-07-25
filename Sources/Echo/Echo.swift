@@ -19,6 +19,14 @@ public func reflect(_ type: Any.Type) -> Metadata {
   return getMetadata(at: ptr)
 }
 
+/// Reflects metadata for a type that may be noncopyable.
+///
+/// `~Copyable` metatypes cannot be converted to `Any.Type`; this overload
+/// preserves their runtime metadata pointer without requiring that conversion.
+public func reflect<T: ~Copyable>(_ type: T.Type) -> Metadata {
+  getMetadata(at: unsafeBitCast(type, to: UnsafeRawPointer.self))
+}
+
 /// The main entry point to grab type metadata from some instance.
 /// - Parameter instance: Any instance value to get metadata from.
 /// - Returns: `Metadata` for the given instance.
@@ -89,6 +97,15 @@ public func reflectEnum(_ type: Any.Type) -> EnumMetadata? {
   return EnumMetadata(ptr: ptr)
 }
 
+/// Reflects enum metadata for a type that may be noncopyable.
+public func reflectEnum<T: ~Copyable>(_ type: T.Type) -> EnumMetadata? {
+  let ptr = unsafeBitCast(type, to: UnsafeRawPointer.self)
+  guard getMetadataKind(at: ptr) == .enum || getMetadataKind(at: ptr) == .optional else {
+    return nil
+  }
+  return EnumMetadata(ptr: ptr)
+}
+
 /// The main entry point to grab a `enum`'s metadata from some instance.
 /// - Parameter instance: Any instance value of a `enum` to get metadata from.
 /// - Returns: `EnumMetadata` for the given instance.
@@ -120,6 +137,13 @@ public func reflectStruct(_ type: Any.Type) -> StructMetadata? {
     return nil
   }
   
+  return StructMetadata(ptr: ptr)
+}
+
+/// Reflects struct metadata for a type that may be noncopyable.
+public func reflectStruct<T: ~Copyable>(_ type: T.Type) -> StructMetadata? {
+  let ptr = unsafeBitCast(type, to: UnsafeRawPointer.self)
+  guard getMetadataKind(at: ptr) == .struct else { return nil }
   return StructMetadata(ptr: ptr)
 }
 

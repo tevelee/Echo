@@ -46,6 +46,12 @@ public struct ContextDescriptorFlags {
   public var isUnique: Bool {
     bits & 0x40 != 0
   }
+
+  /// Whether this descriptor has a trailing `InvertibleProtocolSet` for
+  /// capabilities such as `Copyable` and `Escapable`.
+  public var hasInvertibleProtocols: Bool {
+    bits & 0x20 != 0
+  }
   
   /// Whether or not this context is generic and has a generic context.
   public var isGeneric: Bool {
@@ -416,6 +422,13 @@ public struct TypeContextDescriptorFlags {
   /// Whether this type context has any import information.
   public var hasImportInfo: Bool {
     bits & 0x4 != 0
+  }
+
+  /// Whether this generic descriptor has canonical metadata
+  /// prespecializations, or this non-generic descriptor has a singleton
+  /// metadata pointer.
+  public var hasCanonicalMetadataPrespecializationsOrSingletonMetadataPointer: Bool {
+    bits & 0x8 != 0
   }
 
   /// Whether this type's metadata carries a compact layout string.

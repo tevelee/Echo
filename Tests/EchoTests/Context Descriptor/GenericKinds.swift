@@ -11,6 +11,8 @@ private struct PackGeneric<each Element> {}
 
 private struct NoncopyableGeneric<Element: ~Copyable> {}
 
+private struct NoncopyableContextFixture: ~Copyable {}
+
 extension EchoTests {
   @Test
   func genericParameterKinds() throws {
@@ -60,6 +62,10 @@ extension EchoTests {
     })
     #expect(invertedRequirement.invertedProtocols.invertsCopyable)
     #expect(invertedRequirement.invertedProtocolsGenericParameterIndex == 0)
+
+    let noncopyableType = try #require(reflectStruct(NoncopyableContextFixture.self))
+    #expect(noncopyableType.descriptor.flags.hasInvertibleProtocols)
+    #expect(noncopyableType.descriptor.invertedProtocols?.invertsCopyable == true)
   }
 
   @Test
