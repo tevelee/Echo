@@ -26,6 +26,14 @@ extension EchoTests {
     #expect(metadata.vwt.size == 40)
     #expect(metadata.vwt.stride == 40)
     #expect(metadata.vwt.flags.bits == 196615)
+
+    let swiftReference = try #require(metadata.protocolReferences.first)
+    #expect(swiftReference.kind == .swift)
+    #expect(swiftReference.swiftProtocol?.name == "Testable")
+    #expect(swiftReference.name == "Testable")
+    #expect(swiftReference.dispatchStrategy == .swift)
+    #expect(swiftReference.needsWitnessTable)
+    #expect(swiftReference.hasClassConstraint == false)
     
     // Dual Existential
     
@@ -43,4 +51,22 @@ extension EchoTests {
     #expect(metadata2.vwt.stride == 48)
     #expect(metadata2.vwt.flags.bits == 196615)
   }
+
+  #if canImport(ObjectiveC)
+  @Test
+  func existentialProtocolReferencesDecodeObjectiveCProtocols() throws {
+    let metadata = try #require(
+      reflect((any NSObjectProtocol).self) as? ExistentialMetadata
+    )
+    let reference = try #require(metadata.protocolReferences.first)
+
+    #expect(reference.kind == .objc)
+    #expect(reference.objcProtocolAddress != nil)
+    #expect(reference.name?.isEmpty == false)
+    #expect(reference.dispatchStrategy == .objc)
+    #expect(reference.needsWitnessTable == false)
+    #expect(reference.hasClassConstraint)
+    #expect(reference.specialProtocol == nil)
+  }
+  #endif
 }
