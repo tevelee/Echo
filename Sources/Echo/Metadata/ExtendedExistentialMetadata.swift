@@ -293,6 +293,38 @@ extension ExtendedExistentialTypeShape {
 
 extension ExtendedExistentialTypeShape: Equatable {}
 
+/// A compiler-emitted constrained-existential shape that the Swift runtime
+/// uniquifies before it creates metadata.
+///
+/// Its cache is runtime-owned mutable storage. Echo exposes the cache address
+/// and the embedded shape for inspection, but never reads or writes the cache
+/// value itself.
+public struct NonUniqueExtendedExistentialTypeShape: LayoutWrapper {
+  typealias Layout = _NonUniqueExtendedExistentialTypeShape
+
+  /// Backing non-unique shape pointer.
+  public let ptr: UnsafeRawPointer
+
+  /// The runtime-owned cache used to store the globally unique shape.
+  ///
+  /// This is the address of the cache storage, not its transient contents.
+  public var uniquenessCache: UnsafeRawPointer? {
+    let reference = layout._uniquenessCache
+    guard reference.isNull == false else { return nil }
+    return address(for: \._uniquenessCache)
+  }
+
+  /// The local extended-existential shape copied into this record.
+  public var localShape: ExtendedExistentialTypeShape {
+    ExtendedExistentialTypeShape(
+      ptr: ptr + MemoryLayout<_NonUniqueExtendedExistentialTypeShape>
+        .offset(of: \._localShape)!
+    )
+  }
+}
+
+extension NonUniqueExtendedExistentialTypeShape: Equatable {}
+
 /// Header shared by a constrained existential's generic signatures.
 public struct GenericSignatureHeader {
   /// Number of source generic parameters.
@@ -316,6 +348,11 @@ struct _ExtendedExistentialTypeShape {
   let _flags: ExtendedExistentialTypeShape.Flags
   let _existentialType: RelativeDirectPointer<CChar>
   let _requirementSignature: _GenericContextDescriptorHeader
+}
+
+struct _NonUniqueExtendedExistentialTypeShape {
+  let _uniquenessCache: RelativeDirectPointer<Void>
+  let _localShape: _ExtendedExistentialTypeShape
 }
 
 /// Metadata for a `Builtin.FixedArray` type.

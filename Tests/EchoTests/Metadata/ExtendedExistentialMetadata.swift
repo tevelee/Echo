@@ -59,6 +59,36 @@ extension EchoTests {
   }
 
   @Test
+  func nonUniqueExtendedExistentialShapeExposesItsCacheAndLocalShape() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 128, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 128)
+    defer { storage.deallocate() }
+
+    let cache = UnsafeRawPointer(storage + 96)
+    storage.storeBytes(
+      of: _NonUniqueExtendedExistentialTypeShape(
+        _uniquenessCache: RelativeDirectPointer<Void>(offset: 96),
+        _localShape: _ExtendedExistentialTypeShape(
+          _flags: ExtendedExistentialTypeShape.Flags(bits: 0x101),
+          _existentialType: RelativeDirectPointer<CChar>(offset: 0),
+          _requirementSignature: _GenericContextDescriptorHeader(
+            _numParams: 0,
+            _numRequirements: 0,
+            _numKeyArguments: 0,
+            _numExtraArguments: 0
+          )
+        )
+      ),
+      as: _NonUniqueExtendedExistentialTypeShape.self
+    )
+
+    let shape = NonUniqueExtendedExistentialTypeShape(ptr: UnsafeRawPointer(storage))
+    #expect(shape.uniquenessCache == cache)
+    #expect(shape.localShape.flags.specialKind == .class)
+    #expect(shape.localShape.flags.hasGeneralizationSignature)
+  }
+
+  @Test
   func unknownMetadataKindFailsClosed() {
     let storage = UnsafeMutableRawPointer.allocate(
       byteCount: MemoryLayout<Int>.size,
