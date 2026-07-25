@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 private protocol EchoPublicAPICoverageProtocol {
@@ -10,33 +11,30 @@ private struct EchoPublicAPICoverageConformer: EchoPublicAPICoverageProtocol {
 }
 
 extension EchoTests {
+  @Test
   func testPublicForkAPIs() throws {
     // Keep the conformance reachable in optimized builds.
-    XCTAssertEqual(EchoPublicAPICoverageConformer().value(), 42)
+    #expect(EchoPublicAPICoverageConformer().value() == 42)
 
-    let protocolDescriptor = try XCTUnwrap(
-      Echo.protocols.first { descriptor in
+    let protocolDescriptor = try #require(Echo.protocols.first { descriptor in
         descriptor.name == "EchoPublicAPICoverageProtocol"
-      }
-    )
-    let conformance = try XCTUnwrap(findConformance(to: protocolDescriptor))
-    let namedConformance = try XCTUnwrap(
-      findConformance(toProtocolNamed: "EchoPublicAPICoverageProtocol")
-    )
+      })
+    let conformance = try #require(findConformance(to: protocolDescriptor))
+    let namedConformance = try #require(findConformance(toProtocolNamed: "EchoPublicAPICoverageProtocol"))
 
-    XCTAssertEqual(conformance.protocol, protocolDescriptor)
-    XCTAssertEqual(namedConformance.protocol, protocolDescriptor)
+    #expect(conformance.protocol == protocolDescriptor)
+    #expect(namedConformance.protocol == protocolDescriptor)
 
     let witnessTable = conformance.witnessTablePattern
     let copiedWitnessTable = WitnessTable(ptr: witnessTable.ptr)
-    XCTAssertEqual(copiedWitnessTable.ptr, witnessTable.ptr)
+    #expect(copiedWitnessTable.ptr == witnessTable.ptr)
 
     let base = AnyExistentialContainer(type: EchoPublicAPICoverageConformer.self)
     let container = ExistentialContainer(
       base: base,
       witnessTable: copiedWitnessTable
     )
-    XCTAssertTrue(container.base.type == EchoPublicAPICoverageConformer.self)
-    XCTAssertEqual(container.witnessTable.ptr, copiedWitnessTable.ptr)
+    #expect(typesEqual(container.base.type, EchoPublicAPICoverageConformer.self))
+    #expect(container.witnessTable.ptr == copiedWitnessTable.ptr)
   }
 }

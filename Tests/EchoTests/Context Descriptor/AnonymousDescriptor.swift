@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 struct AnonymousFoo {
@@ -28,20 +29,21 @@ struct AnonymousFoo {
     equals expected: String
   ) throws {
     #if DEBUG
-    XCTAssertTrue(descriptor.anonymousFlags.hasMangledName)
-    XCTAssertEqual(try XCTUnwrap(descriptor.mangledName), expected)
+    #expect(descriptor.anonymousFlags.hasMangledName)
+    #expect(try #require(descriptor.mangledName) == expected)
     #else
     // Optimized builds may omit the optional debugging name entirely.
     if descriptor.anonymousFlags.hasMangledName {
-      XCTAssertEqual(try XCTUnwrap(descriptor.mangledName), expected)
+      #expect(try #require(descriptor.mangledName) == expected)
     } else {
-      XCTAssertNil(descriptor.mangledName)
+      #expect(descriptor.mangledName == nil)
     }
     #endif
   }
 }
 
 extension EchoTests {
+  @Test
   func testAnonymousDescriptor() throws {
     try AnonymousFoo.test()
     try AnonymousFoo.testGeneric()

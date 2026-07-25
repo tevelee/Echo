@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 enum Colors {
@@ -9,10 +10,11 @@ enum Colors {
 }
 
 extension EchoTests {
+  @Test
   func testEnumDescriptor() {
     let metadata = reflectEnum(Colors.self)!
-    XCTAssertEqual(metadata.descriptor.numEmptyCases, 3)
-    XCTAssertEqual(metadata.descriptor.numPayloadCases, 1)
+    #expect(metadata.descriptor.numEmptyCases == 3)
+    #expect(metadata.descriptor.numPayloadCases == 1)
   }
 }
 

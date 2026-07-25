@@ -1,41 +1,6 @@
-import XCTest
+import Foundation
+import Foundation
+import Testing
 import Echo
 
-final class EchoTests: XCTestCase {
-  static let allTests = [
-    // Context Descriptors
-    
-    ("testAnonymousDescriptor", testAnonymousDescriptor),
-    ("testClassDescriptor", testClassDescriptor),
-    ("testEnumDescriptor", testEnumDescriptor),
-    ("testExtensionDescriptor", testExtensionDescriptor),
-    ("testFieldDescriptor", testFieldDescriptor),
-    ("testGenericContext", testGenericContext),
-    ("testModuleDescriptor", testModuleDescriptor),
-    ("testProtocolDescriptor", testProtocolDescriptor),
-    ("testStructDescriptor", testStructDescriptor),
-    
-    // Metadata
-    
-    ("testClassMetadata", testClassMetadata),
-    ("testEnumMetadata", testEnumMetadata),
-    ("testExistentialMetadata", testExistentialMetadata),
-    ("testExistentialMetatypeMetadata", testExistentialMetatypeMetadata),
-    ("testFunctionMetadata", testFunctionMetadata),
-    ("testMetadataFlags", testMetadataFlags),
-    ("testMetadataAccessFunction", testMetadataAccessFunction),
-    ("testMetatypeMetadata", testMetatypeMetadata),
-    ("testObjCClassWrapperMetadata", testObjCClassWrapperMetadata),
-    ("testOpaqueMetadata", testOpaqueMetadata),
-    ("testStructMetadata", testStructMetadata),
-    ("testTupleMetadata", testTupleMetadata),
-    
-    // Runtime
-    
-    ("testConformanceDescriptor", testConformanceDescriptor),
-    ("testExistentialContainer", testExistentialContainer),
-    ("testBoxRuntimeFunctions", testBoxRuntimeFunctions),
-    ("testImageInspection", testImageInspection),
-    ("testPublicForkAPIs", testPublicForkAPIs),
-  ]
-}
+struct EchoTests {}

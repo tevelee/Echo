@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 protocol Wheel {}
@@ -9,15 +10,16 @@ extension CheeseWheel: Equatable {}
 extension CheeseWheel: DumbWheel {}
 
 extension EchoTests {
+  @Test
   func testConformanceDescriptor() throws {
     let metadata = reflectStruct(CheeseWheel.self)!
     let wheelConf = metadata.conformances[0]
     
-    XCTAssertNotNil(wheelConf.contextDescriptor)
+    #expect(wheelConf.contextDescriptor != nil)
     #if canImport(ObjectiveC)
-    XCTAssertNil(wheelConf.objcClass)
+    #expect(wheelConf.objcClass == nil)
     #endif
-    XCTAssertEqual(wheelConf.flags.bits, 0)
-    XCTAssertEqual(wheelConf.protocol.name, "Wheel")
+    #expect(wheelConf.flags.bits == 0)
+    #expect(wheelConf.protocol.name == "Wheel")
   }
 }

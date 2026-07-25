@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 actor FlagActor {
@@ -12,48 +13,49 @@ class FlagPlainClass {
 enum MetadataFlagsTests {
   static func testValueWitnessCopyability() {
     let intFlags = reflect(Int.self).vwt.flags
-    XCTAssertTrue(intFlags.isCopyable)
-    XCTAssertTrue(intFlags.isBitwiseBorrowable)
+    #expect(intFlags.isCopyable)
+    #expect(intFlags.isBitwiseBorrowable)
 
-    XCTAssertTrue(reflect(String.self).vwt.flags.isCopyable)
+    #expect(reflect(String.self).vwt.flags.isCopyable)
   }
 
   static func testFunctionFlags() {
     let plain = reflect((() -> Void).self) as! FunctionMetadata
-    XCTAssertFalse(plain.flags.isAsync)
-    XCTAssertFalse(plain.flags.throws)
-    XCTAssertFalse(plain.flags.isSendable)
-    XCTAssertFalse(plain.flags.hasGlobalActor)
+    #expect(plain.flags.isAsync == false)
+    #expect(plain.flags.throws == false)
+    #expect(plain.flags.isSendable == false)
+    #expect(plain.flags.hasGlobalActor == false)
 
-    XCTAssertTrue((reflect((() async -> Void).self) as! FunctionMetadata).flags.isAsync)
-    XCTAssertTrue((reflect((() throws -> Void).self) as! FunctionMetadata).flags.throws)
-    XCTAssertTrue((reflect((@Sendable () -> Void).self) as! FunctionMetadata).flags.isSendable)
+    #expect((reflect((() async -> Void).self) as! FunctionMetadata).flags.isAsync)
+    #expect((reflect((() throws -> Void).self) as! FunctionMetadata).flags.throws)
+    #expect((reflect((@Sendable () -> Void).self) as! FunctionMetadata).flags.isSendable)
 
     let asyncThrows = reflect((() async throws -> Void).self) as! FunctionMetadata
-    XCTAssertTrue(asyncThrows.flags.isAsync)
-    XCTAssertTrue(asyncThrows.flags.throws)
+    #expect(asyncThrows.flags.isAsync)
+    #expect(asyncThrows.flags.throws)
 
-    XCTAssertTrue((reflect((@MainActor () -> Void).self) as! FunctionMetadata).flags.hasGlobalActor)
+    #expect((reflect((@MainActor () -> Void).self) as! FunctionMetadata).flags.hasGlobalActor)
   }
 
   static func testActorFlags() {
     let actorMetadata = reflectClass(FlagActor.self)!
-    XCTAssertTrue(actorMetadata.isActor)
-    XCTAssertTrue(actorMetadata.isDefaultActor)
+    #expect(actorMetadata.isActor)
+    #expect(actorMetadata.isDefaultActor)
 
     let plainMetadata = reflectClass(FlagPlainClass.self)!
-    XCTAssertFalse(plainMetadata.isActor)
-    XCTAssertFalse(plainMetadata.isDefaultActor)
+    #expect(plainMetadata.isActor == false)
+    #expect(plainMetadata.isDefaultActor == false)
 
     #if canImport(ObjectiveC)
     let nsObject = reflectClass(NSObject.self)!
-    XCTAssertFalse(nsObject.isActor)
-    XCTAssertFalse(nsObject.isDefaultActor)
+    #expect(nsObject.isActor == false)
+    #expect(nsObject.isDefaultActor == false)
     #endif
   }
 }
 
 extension EchoTests {
+  @Test
   func testMetadataFlags() {
     MetadataFlagsTests.testValueWitnessCopyability()
     MetadataFlagsTests.testFunctionFlags()

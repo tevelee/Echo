@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 struct ExtensionFoo<T> {}
@@ -9,6 +10,7 @@ extension ExtensionFoo where T == Int {
 }
 
 extension EchoTests {
+  @Test
   func testExtensionDescriptor() {
     let metadata = reflectStruct(ExtensionFoo<Int>.ExtensionBar.self)!
     let extensionDescriptor = metadata.descriptor.parent as! ExtensionDescriptor
@@ -17,7 +19,7 @@ extension EchoTests {
     let size = getSymbolicMangledNameLength(extendedContext)
     // 9 because symbolic prefix (1), symbol (4), ySiG (4)
     // where ySiG is binding the type to <Int>
-    XCTAssertEqual(size, 9)
+    #expect(size == 9)
   }
 }
 

@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 enum ImageInspectionTests {
@@ -6,7 +7,7 @@ enum ImageInspectionTests {
     // Echo Types
     
     let metadata = reflectStruct(StructMetadata.self)!
-    XCTAssertEqual(metadata.conformances.count, 4)
+    #expect(metadata.conformances.count == 4)
     
     // Stdlib types
     
@@ -17,7 +18,7 @@ enum ImageInspectionTests {
     intConfCount = 25
     #endif
     
-    XCTAssert(int.conformances.count >= intConfCount)
+    #expect(int.conformances.count >= intConfCount)
   }
   
   static func testProtos() throws {
@@ -38,7 +39,7 @@ enum ImageInspectionTests {
       echoFound = true
     }
     
-    XCTAssertTrue(echoFound)
+    #expect(echoFound)
     
     // Stdlib protos
     
@@ -55,7 +56,7 @@ enum ImageInspectionTests {
       stdlibFound = true
     }
     
-    XCTAssertTrue(stdlibFound)
+    #expect(stdlibFound)
   }
   
   static func testTypes() throws {
@@ -80,7 +81,7 @@ enum ImageInspectionTests {
       echoFound = true
     }
     
-    XCTAssertTrue(echoFound)
+    #expect(echoFound)
     
     // Stdlib protos
     
@@ -101,11 +102,12 @@ enum ImageInspectionTests {
       stdlibFound = true
     }
     
-    XCTAssertTrue(stdlibFound)
+    #expect(stdlibFound)
   }
 }
 
 extension EchoTests {
+  @Test
   func testImageInspection() throws {
     try ImageInspectionTests.testConformances()
     try ImageInspectionTests.testProtos()

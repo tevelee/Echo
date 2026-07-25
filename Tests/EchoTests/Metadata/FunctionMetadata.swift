@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 func add(_ x: Int, _ y: Int...) -> Int {
@@ -6,27 +7,25 @@ func add(_ x: Int, _ y: Int...) -> Int {
 }
 
 extension EchoTests {
+  @Test
   func testFunctionMetadata() throws {
-    let maybeMetadata = reflect(add(_:_:)) as? FunctionMetadata
-    XCTAssertNotNil(maybeMetadata)
+    let metadata = try #require(reflect(add(_:_:)) as? FunctionMetadata)
     
-    let metadata = maybeMetadata!
-    
-    XCTAssertEqual(metadata.flags.numParams, 2)
-    XCTAssertEqual(metadata.flags.convention, .swift)
-    XCTAssertFalse(metadata.flags.throws)
-    XCTAssertTrue(metadata.flags.hasParamFlags)
-    XCTAssertTrue(metadata.flags.isEscaping)
-    XCTAssert(typeArraysEquals(metadata.paramTypes, [Int.self, Int.self]))
-    XCTAssert(metadata.resultType == Int.self)
-    XCTAssertEqual(metadata.kind, .function)
+    #expect(metadata.flags.numParams == 2)
+    #expect(metadata.flags.convention == .swift)
+    #expect(metadata.flags.throws == false)
+    #expect(metadata.flags.hasParamFlags)
+    #expect(metadata.flags.isEscaping)
+    #expect(typeArraysEquals(metadata.paramTypes, [Int.self, Int.self]))
+    #expect(typesEqual(metadata.resultType, Int.self))
+    #expect(metadata.kind == .function)
     
     for (i, paramFlag) in metadata.paramFlags.enumerated() {
       switch i {
       case 0:
-        XCTAssertEqual(paramFlag.bits, 0)
+        #expect(paramFlag.bits == 0)
       case 1:
-        XCTAssertEqual(paramFlag.bits, 128)
+        #expect(paramFlag.bits == 128)
       default:
         fatalError()
       }
@@ -39,9 +38,9 @@ extension EchoTests {
     extraInhabitantCount = 4096
     #endif
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
-    XCTAssertEqual(metadata.vwt.size, 16)
-    XCTAssertEqual(metadata.vwt.stride, 16)
-    XCTAssertEqual(metadata.vwt.flags.bits, 65543)
+    #expect(metadata.vwt.extraInhabitantCount == extraInhabitantCount)
+    #expect(metadata.vwt.size == 16)
+    #expect(metadata.vwt.stride == 16)
+    #expect(metadata.vwt.flags.bits == 65543)
   }
 }

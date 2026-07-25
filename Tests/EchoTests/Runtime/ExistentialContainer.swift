@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 private struct WheelContainer {
@@ -10,6 +11,7 @@ private struct DualWheelContainer {
 }
 
 extension EchoTests {
+  @Test
   func testExistentialContainer() throws {
     // NO WITNESS TABLE
     
@@ -17,8 +19,8 @@ extension EchoTests {
     var xBox = container(for: x)
     let dataPtr = xBox.projectValue()
     
-    XCTAssert(xBox.type == Int.self)
-    XCTAssertEqual(dataPtr.load(as: Int.self), 128)
+    #expect(typesEqual(xBox.type, Int.self))
+    #expect(dataPtr.load(as: Int.self) == 128)
     
     // SINGLE WITNESS TABLE
     
@@ -26,9 +28,9 @@ extension EchoTests {
     var yBox = unsafeBitCast(WheelContainer(value: y), to: ExistentialContainer.self)
     let yPtr = yBox.base.projectValue()
     
-    XCTAssert(yBox.base.type == CheeseWheel.self)
-    XCTAssertEqual(yPtr.load(as: CheeseWheel.self), CheeseWheel())
-    XCTAssertEqual(yBox.witnessTable.conformanceDescriptor.protocol.name, "Wheel")
+    #expect(typesEqual(yBox.base.type, CheeseWheel.self))
+    #expect(yPtr.load(as: CheeseWheel.self) == CheeseWheel())
+    #expect(yBox.witnessTable.conformanceDescriptor.protocol.name == "Wheel")
     
     // DUAL WITNESS TABLE
     
@@ -36,10 +38,10 @@ extension EchoTests {
     var zBox = unsafeBitCast(DualWheelContainer(value: z), to: DualExistentialContainer.self)
     let zPtr = zBox.base.projectValue()
     
-    XCTAssert(zBox.base.type == CheeseWheel.self)
-    XCTAssertEqual(zPtr.load(as: CheeseWheel.self), CheeseWheel())
-    XCTAssertEqual(zBox.witnessTables.0.conformanceDescriptor.protocol.name, "DumbWheel")
-    XCTAssertEqual(zBox.witnessTables.1.conformanceDescriptor.protocol.name, "Wheel")
+    #expect(typesEqual(zBox.base.type, CheeseWheel.self))
+    #expect(zPtr.load(as: CheeseWheel.self) == CheeseWheel())
+    #expect(zBox.witnessTables.0.conformanceDescriptor.protocol.name == "DumbWheel")
+    #expect(zBox.witnessTables.1.conformanceDescriptor.protocol.name == "Wheel")
     
     // Wrapped existentials
     
@@ -50,7 +52,7 @@ extension EchoTests {
     let wrapped = wrap(wrap(wrap(wrap(128))))
     var wrappedBox = container(for: wrapped)
     let wrappedPtr = wrappedBox.projectValue()
-    XCTAssert(wrappedBox.type == Int.self)
-    XCTAssertEqual(wrappedPtr.load(as: Int.self), 128)
+    #expect(typesEqual(wrappedBox.type, Int.self))
+    #expect(wrappedPtr.load(as: Int.self) == 128)
   }
 }

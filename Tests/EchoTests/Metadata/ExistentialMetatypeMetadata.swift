@@ -1,15 +1,14 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 extension EchoTests {
+  @Test
   func testExistentialMetatypeMetadata() throws {
-    let maybeMetadata = reflect(Testable.Type.self) as? ExistentialMetatypeMetadata
-    XCTAssertNotNil(maybeMetadata)
+    let metadata = try #require(reflect(Testable.Type.self) as? ExistentialMetatypeMetadata)
     
-    let metadata = maybeMetadata!
-    
-    XCTAssert(metadata.instanceType == Testable.self)
-    XCTAssertEqual(metadata.flags.bits, 2147483649)
+    #expect(typesEqual(metadata.instanceType, Testable.self))
+    #expect(metadata.flags.bits == 2147483649)
     
     // VWT
     
@@ -18,9 +17,9 @@ extension EchoTests {
     extraInhabitantCount = 4096
     #endif
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
-    XCTAssertEqual(metadata.vwt.size, 16)
-    XCTAssertEqual(metadata.vwt.stride, 16)
-    XCTAssertEqual(metadata.vwt.flags.bits, 7)
+    #expect(metadata.vwt.extraInhabitantCount == extraInhabitantCount)
+    #expect(metadata.vwt.size == 16)
+    #expect(metadata.vwt.stride == 16)
+    #expect(metadata.vwt.flags.bits == 7)
   }
 }

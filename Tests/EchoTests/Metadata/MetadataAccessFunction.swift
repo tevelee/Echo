@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 struct FooBar0 {}
@@ -19,40 +20,40 @@ enum MetadataAccessFunctionTests {
     let metadata0 = reflectStruct(FooBar0.self)!
     let accessor0 = metadata0.descriptor.accessor
     let response0 = accessor0(.complete)
-    XCTAssertEqual(response0.state, .complete)
-    XCTAssert(response0.type == FooBar0.self)
+    #expect(response0.state == .complete)
+    #expect(typesEqual(response0.type, FooBar0.self))
     
     // 1 ARG
     
     let metadata1 = reflectStruct(FooBar1<Int>.self)!
     let accessor1 = metadata1.descriptor.accessor
     let response1 = accessor1(.complete, Double.self)
-    XCTAssertEqual(response1.state, .complete)
-    XCTAssert(response1.type == FooBar1<Double>.self)
+    #expect(response1.state == .complete)
+    #expect(typesEqual(response1.type, FooBar1<Double>.self))
     
     // 2 ARG
     
     let metadata2 = reflectStruct(FooBar2<Int, Int>.self)!
     let accessor2 = metadata2.descriptor.accessor
     let response2 = accessor2(.complete, Double.self, Double.self)
-    XCTAssertEqual(response2.state, .complete)
-    XCTAssert(response2.type == FooBar2<Double, Double>.self)
+    #expect(response2.state == .complete)
+    #expect(typesEqual(response2.type, FooBar2<Double, Double>.self))
     
     // 3 ARG
     
     let metadata3 = reflectStruct(FooBar3<Int, Int, Int>.self)!
     let accessor3 = metadata3.descriptor.accessor
     let response3 = accessor3(.complete, Double.self, Double.self, Double.self)
-    XCTAssertEqual(response3.state, .complete)
-    XCTAssert(response3.type == FooBar3<Double, Double, Double>.self)
+    #expect(response3.state == .complete)
+    #expect(typesEqual(response3.type, FooBar3<Double, Double, Double>.self))
     
     // 4 ARG
     
     let metadata4 = reflectStruct(FooBar4<Int, Int, Int, Int>.self)!
     let accessor4 = metadata4.descriptor.accessor
     let response4 = accessor4(.complete, Double.self, Double.self, Double.self, Double.self)
-    XCTAssertEqual(response4.state, .complete)
-    XCTAssert(response4.type == FooBar4<Double, Double, Double, Double>.self)
+    #expect(response4.state == .complete)
+    #expect(typesEqual(response4.type, FooBar4<Double, Double, Double, Double>.self))
   }
   
   static func testWitnessTable() throws {
@@ -66,12 +67,12 @@ enum MetadataAccessFunctionTests {
     
     for conformance in reflectStruct(Double.self)!.conformances {
       if conformance.protocol == equatable {
-        XCTAssert(!conformance.flags.hasGenericWitnessTable)
+        #expect(conformance.flags.hasGenericWitnessTable == false)
         doubleEquatable = conformance.witnessTablePattern
       }
       
       if conformance.protocol == hashable {
-        XCTAssert(!conformance.flags.hasGenericWitnessTable)
+        #expect(conformance.flags.hasGenericWitnessTable == false)
         doubleHashable = conformance.witnessTablePattern
       }
     }
@@ -84,32 +85,32 @@ enum MetadataAccessFunctionTests {
     let metadata1 = reflectStruct(FooBaz1<Int>.self)!
     let accessor1 = metadata1.descriptor.accessor
     let response1 = accessor1(.complete, typeWitness)
-    XCTAssertEqual(response1.state, .complete)
-    XCTAssert(response1.type == FooBaz1<Double>.self)
+    #expect(response1.state == .complete)
+    #expect(typesEqual(response1.type, FooBaz1<Double>.self))
     
     // 2 ARG
     
     let metadata2 = reflectStruct(FooBaz2<Int, Int>.self)!
     let accessor2 = metadata2.descriptor.accessor
     let response2 = accessor2(.complete, typeWitness, typeWitness)
-    XCTAssertEqual(response2.state, .complete)
-    XCTAssert(response2.type == FooBaz2<Double, Double>.self)
+    #expect(response2.state == .complete)
+    #expect(typesEqual(response2.type, FooBaz2<Double, Double>.self))
     
     // 3 ARG
     
     let metadata3 = reflectStruct(FooBaz3<Int, Int, Int>.self)!
     let accessor3 = metadata3.descriptor.accessor
     let response3 = accessor3(.complete, typeWitness, typeWitness, typeWitness)
-    XCTAssertEqual(response3.state, .complete)
-    XCTAssert(response3.type == FooBaz3<Double, Double, Double>.self)
+    #expect(response3.state == .complete)
+    #expect(typesEqual(response3.type, FooBaz3<Double, Double, Double>.self))
     
     // 4 ARG
     
     let metadata4 = reflectStruct(FooBaz4<Int, Int, Int, Int>.self)!
     let accessor4 = metadata4.descriptor.accessor
     let response4 = accessor4(.complete, typeWitness, typeWitness, typeWitness, typeWitness)
-    XCTAssertEqual(response4.state, .complete)
-    XCTAssert(response4.type == FooBaz4<Double, Double, Double, Double>.self)
+    #expect(response4.state == .complete)
+    #expect(typesEqual(response4.type, FooBaz4<Double, Double, Double, Double>.self))
     
     // STDLIB TYPES
     
@@ -118,8 +119,8 @@ enum MetadataAccessFunctionTests {
     // The last argument has a nil witness table because the value type in
     // dictionary has no conformance requirements.
     let dictResponse = dictAccessor(.complete, typeWitness1, (Double.self, nil))
-    XCTAssertEqual(dictResponse.state, .complete)
-    XCTAssert(dictResponse.type == [Double: Double].self)
+    #expect(dictResponse.state == .complete)
+    #expect(typesEqual(dictResponse.type, [Double: Double].self))
   }
 
   static func testWitnessTableDistinctArgs() throws {
@@ -150,12 +151,13 @@ enum MetadataAccessFunctionTests {
       (Int.self, intEquatable),
       (Double.self, doubleEquatable)
     )
-    XCTAssertEqual(response.state, .complete)
-    XCTAssert(response.type == FooBaz2<Int, Double>.self)
+    #expect(response.state == .complete)
+    #expect(typesEqual(response.type, FooBaz2<Int, Double>.self))
   }
 }
 
 extension EchoTests {
+  @Test
   func testMetadataAccessFunction() throws {
     try MetadataAccessFunctionTests.testPlain()
     try MetadataAccessFunctionTests.testWitnessTable()

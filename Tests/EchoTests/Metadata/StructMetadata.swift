@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 struct Cat {
@@ -13,15 +14,12 @@ struct Cat2<T, U> {
 
 enum StructMetadataTests {
   static func testStruct() throws {
-    let maybeMetadata = reflectStruct(Cat.self)
-    XCTAssertNotNil(maybeMetadata)
+    let metadata = try #require(reflectStruct(Cat.self))
     
-    let metadata = maybeMetadata!
-    
-    XCTAssertEqual(metadata.fieldOffsets, [0, 16])
-    XCTAssert(typeArraysEquals(metadata.genericTypes, []))
-    XCTAssertEqual(metadata.kind, .struct)
-    XCTAssert(metadata.type == Cat.self)
+    #expect(metadata.fieldOffsets == [0, 16])
+    #expect(typeArraysEquals(metadata.genericTypes, []))
+    #expect(metadata.kind == .struct)
+    #expect(typesEqual(metadata.type, Cat.self))
     
     // VWT
     
@@ -30,21 +28,21 @@ enum StructMetadataTests {
     extraInhabitantCount = 4096
     #endif
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
-    XCTAssertEqual(metadata.vwt.size, 24)
-    XCTAssertEqual(metadata.vwt.stride, 24)
+    #expect(metadata.vwt.extraInhabitantCount == extraInhabitantCount)
+    #expect(metadata.vwt.size == 24)
+    #expect(metadata.vwt.stride == 24)
     assertStringAndIntLayoutFlags(metadata.vwt.flags)
     
     // type(of:)
     
     for (i, record) in metadata.descriptor.fields.records.enumerated() {
-      XCTAssert(record.hasMangledTypeName)
+      #expect(record.hasMangledTypeName)
       
       switch i {
       case 0:
-        XCTAssert(metadata.type(of: record.mangledTypeName) == String.self)
+        #expect(typesEqual(metadata.type(of: record.mangledTypeName), String.self))
       case 1:
-        XCTAssert(metadata.type(of: record.mangledTypeName) == Int.self)
+        #expect(typesEqual(metadata.type(of: record.mangledTypeName), Int.self))
       default:
         fatalError()
       }
@@ -52,15 +50,12 @@ enum StructMetadataTests {
   }
   
   static func testGenericStruct() throws {
-    let maybeMetadata = reflectStruct(Cat2<String, Int>.self)
-    XCTAssertNotNil(maybeMetadata)
+    let metadata = try #require(reflectStruct(Cat2<String, Int>.self))
     
-    let metadata = maybeMetadata!
-    
-    XCTAssertEqual(metadata.fieldOffsets, [0, 16])
-    XCTAssert(typeArraysEquals(metadata.genericTypes, [String.self, Int.self]))
-    XCTAssertEqual(metadata.kind, .struct)
-    XCTAssert(metadata.type == Cat2<String, Int>.self)
+    #expect(metadata.fieldOffsets == [0, 16])
+    #expect(typeArraysEquals(metadata.genericTypes, [String.self, Int.self]))
+    #expect(metadata.kind == .struct)
+    #expect(typesEqual(metadata.type, Cat2<String, Int>.self))
     
     // VWT
     
@@ -69,9 +64,9 @@ enum StructMetadataTests {
     extraInhabitantCount = 4096
     #endif
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
-    XCTAssertEqual(metadata.vwt.size, 24)
-    XCTAssertEqual(metadata.vwt.stride, 24)
+    #expect(metadata.vwt.extraInhabitantCount == extraInhabitantCount)
+    #expect(metadata.vwt.size == 24)
+    #expect(metadata.vwt.stride == 24)
     assertStringAndIntLayoutFlags(metadata.vwt.flags)
   }
 
@@ -79,16 +74,17 @@ enum StructMetadataTests {
     _ flags: ValueWitnessTable.Flags
   ) {
     // New runtimes may add flags that do not change these layout semantics.
-    XCTAssertEqual(flags.alignment, 8)
-    XCTAssertTrue(flags.isValueInline)
-    XCTAssertFalse(flags.isPOD)
-    XCTAssertTrue(flags.isBitwiseTakable)
-    XCTAssertFalse(flags.hasEnumWitnesses)
-    XCTAssertFalse(flags.isIncomplete)
+    #expect(flags.alignment == 8)
+    #expect(flags.isValueInline)
+    #expect(flags.isPOD == false)
+    #expect(flags.isBitwiseTakable)
+    #expect(flags.hasEnumWitnesses == false)
+    #expect(flags.isIncomplete == false)
   }
 }
 
 extension EchoTests {
+  @Test
   func testStructMetadata() throws {
     try StructMetadataTests.testStruct()
     try StructMetadataTests.testGenericStruct()

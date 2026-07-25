@@ -1,4 +1,5 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 enum FieldDescriptorTests {
@@ -18,44 +19,44 @@ enum FieldDescriptorTests {
     let metadata = reflectClass(FieldTesting.self)!
     let fields = metadata.descriptor!.fields
     
-    XCTAssert(fields.hasMangledTypeName)
-    XCTAssertEqual(fields.kind, .class)
+    #expect(fields.hasMangledTypeName)
+    #expect(fields.kind == .class)
     
     let typeName = metadata.type(of: fields.mangledTypeName)!
-    XCTAssert(typeName == FieldTesting.self)
+    #expect(typesEqual(typeName, FieldTesting.self))
     
-    XCTAssertEqual(fields.numFields, 3)
+    #expect(fields.numFields == 3)
     
-    XCTAssertEqual(fields.recordSize, 12)
+    #expect(fields.recordSize == 12)
     for (i, record) in fields.records.enumerated() {
-      XCTAssert(record.hasMangledTypeName)
+      #expect(record.hasMangledTypeName)
       
       let varType = metadata.type(of: record.mangledTypeName)!
       
       switch i {
       case 0:
-        XCTAssert(varType == Super?.self)
+        #expect(typesEqual(varType, Super?.self))
       case 1...2:
-        XCTAssert(varType == Child.self)
+        #expect(typesEqual(varType, Child.self))
       default:
         break
       }
       
       switch i {
       case 0:
-        XCTAssertEqual(record.referenceStorage, .weak)
-        XCTAssert(record.flags.isVar)
+        #expect(record.referenceStorage == .weak)
+        #expect(record.flags.isVar)
       case 1:
-        XCTAssertEqual(record.referenceStorage, .unowned)
-        XCTAssertFalse(record.flags.isVar)
+        #expect(record.referenceStorage == .unowned)
+        #expect(record.flags.isVar == false)
       case 2:
-        XCTAssertEqual(record.referenceStorage, .unmanaged)
-        XCTAssertFalse(record.flags.isVar)
+        #expect(record.referenceStorage == .unmanaged)
+        #expect(record.flags.isVar == false)
       default:
         break
       }
       
-      XCTAssertFalse(record.flags.isIndirectCase)
+      #expect(record.flags.isIndirectCase == false)
     }
   }
   
@@ -72,33 +73,33 @@ enum FieldDescriptorTests {
     let metadata = reflectEnum(ABC.self)!
     let fields = metadata.descriptor.fields
     
-    XCTAssert(fields.hasMangledTypeName)
-    XCTAssertEqual(fields.kind, .enum)
+    #expect(fields.hasMangledTypeName)
+    #expect(fields.kind == .enum)
     
     let typeName = metadata.type(of: fields.mangledTypeName)!
-    XCTAssert(typeName == ABC.self)
+    #expect(typesEqual(typeName, ABC.self))
     
-    XCTAssertEqual(fields.numFields, 3)
+    #expect(fields.numFields == 3)
     
-    XCTAssertEqual(fields.recordSize, 12)
+    #expect(fields.recordSize == 12)
     for record in fields.records {
-      XCTAssertFalse(record.hasMangledTypeName)
-      XCTAssertEqual(record.referenceStorage, .none)
+      #expect(record.hasMangledTypeName == false)
+      #expect(record.referenceStorage == .none)
     }
     
     let colorMetadata = reflectEnum(Color.self)!
     let colorFields = colorMetadata.descriptor.fields
     
-    XCTAssertEqual(colorFields.kind, .multiPayloadEnum)
+    #expect(colorFields.kind == .multiPayloadEnum)
     
     for (i, record) in colorFields.records.enumerated() {
       switch i {
       case 0:
-        XCTAssert(record.flags.isIndirectCase)
-        XCTAssertFalse(record.flags.isVar)
+        #expect(record.flags.isIndirectCase)
+        #expect(record.flags.isVar == false)
       case 1:
-        XCTAssertFalse(record.flags.isIndirectCase)
-        XCTAssertFalse(record.flags.isVar)
+        #expect(record.flags.isIndirectCase == false)
+        #expect(record.flags.isVar == false)
       default:
         break
       }
@@ -110,37 +111,38 @@ enum FieldDescriptorTests {
     let metadata = reflectStruct(Dog.self)!
     let fields = metadata.descriptor.fields
     
-    XCTAssert(fields.hasMangledTypeName)
-    XCTAssertEqual(fields.kind, .struct)
+    #expect(fields.hasMangledTypeName)
+    #expect(fields.kind == .struct)
     
     let typeName = metadata.type(of: fields.mangledTypeName)!
-    XCTAssert(typeName == Dog.self)
+    #expect(typesEqual(typeName, Dog.self))
     
-    XCTAssertEqual(fields.numFields, 2)
+    #expect(fields.numFields == 2)
     
-    XCTAssertEqual(fields.recordSize, 12)
+    #expect(fields.recordSize == 12)
     for (i, record) in fields.records.enumerated() {
-      XCTAssert(record.hasMangledTypeName)
+      #expect(record.hasMangledTypeName)
       
       let varType = metadata.type(of: record.mangledTypeName)!
       
       switch i {
       case 0:
-        XCTAssert(varType == String.self)
+        #expect(typesEqual(varType, String.self))
       case 1:
-        XCTAssert(varType == Int.self)
+        #expect(typesEqual(varType, Int.self))
       default:
         break
       }
       
-      XCTAssertEqual(record.referenceStorage, .none)
-      XCTAssertFalse(record.flags.isIndirectCase)
-      XCTAssertFalse(record.flags.isVar)
+      #expect(record.referenceStorage == .none)
+      #expect(record.flags.isIndirectCase == false)
+      #expect(record.flags.isVar == false)
     }
   }
 }
 
 extension EchoTests {
+  @Test
   func testFieldDescriptor() throws {
     try FieldDescriptorTests.testClass()
     try FieldDescriptorTests.testEnum()

@@ -1,25 +1,24 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 extension EchoTests {
+  @Test
   func testObjCClassWrapperMetadata() throws {
     #if canImport(ObjectiveC)
-    let maybeMetadata = reflect(NSObject.self) as? ObjCClassWrapperMetadata
-    XCTAssertNotNil(maybeMetadata)
-    
-    let metadata = maybeMetadata!
+    let metadata = try #require(reflect(NSObject.self) as? ObjCClassWrapperMetadata)
     
     // We compare strings here because comparing `NSObject.self` would compare
     // the objc class wrapper against class metadata.
-    XCTAssert("\(metadata.classType)" == "NSObject")
-    XCTAssertEqual(metadata.kind, .objcClassWrapper)
+    #expect("\(metadata.classType)" == "NSObject")
+    #expect(metadata.kind == .objcClassWrapper)
     
     // VWT
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, 2147483647)
-    XCTAssertEqual(metadata.vwt.size, 8)
-    XCTAssertEqual(metadata.vwt.stride, 8)
-    XCTAssertEqual(metadata.vwt.flags.bits, 65543)
+    #expect(metadata.vwt.extraInhabitantCount == 2147483647)
+    #expect(metadata.vwt.size == 8)
+    #expect(metadata.vwt.stride == 8)
+    #expect(metadata.vwt.flags.bits == 65543)
     #endif
   }
 }

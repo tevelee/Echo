@@ -18,6 +18,19 @@ func typeArraysEquals(_ lhs: [Any.Type], _ rhs: [Any.Type]) -> Bool {
   return true
 }
 
+/// `#expect` cannot directly infer the generic comparison overload for some
+/// metatype pairs, so compare their runtime identities explicitly.
+func typesEqual(_ lhs: Any.Type?, _ rhs: Any.Type?) -> Bool {
+  switch (lhs, rhs) {
+  case let (lhs?, rhs?):
+    return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+  case (nil, nil):
+    return true
+  default:
+    return false
+  }
+}
+
 // https://github.com/apple/swift/blob/master/stdlib/public/core/KeyPath.swift
 func getSymbolicMangledNameLength(_ base: UnsafeRawPointer) -> Int {
   var end = base

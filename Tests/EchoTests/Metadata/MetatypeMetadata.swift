@@ -1,15 +1,14 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
 extension EchoTests {
+  @Test
   func testMetatypeMetadata() throws {
-    let maybeMetadata = reflect(Int.Type.self) as? MetatypeMetadata
-    XCTAssertNotNil(maybeMetadata)
+    let metadata = try #require(reflect(Int.Type.self) as? MetatypeMetadata)
     
-    let metadata = maybeMetadata!
-    
-    XCTAssert(metadata.instanceType == Int.self)
-    XCTAssertEqual(metadata.kind, .metatype)
+    #expect(typesEqual(metadata.instanceType, Int.self))
+    #expect(metadata.kind == .metatype)
     
     // VWT
     
@@ -18,9 +17,9 @@ extension EchoTests {
     extraInhabitantCount = 4096
     #endif
     
-    XCTAssertEqual(metadata.vwt.extraInhabitantCount, extraInhabitantCount)
-    XCTAssertEqual(metadata.vwt.size, 8)
-    XCTAssertEqual(metadata.vwt.stride, 8)
-    XCTAssertEqual(metadata.vwt.flags.bits, 7)
+    #expect(metadata.vwt.extraInhabitantCount == extraInhabitantCount)
+    #expect(metadata.vwt.size == 8)
+    #expect(metadata.vwt.stride == 8)
+    #expect(metadata.vwt.flags.bits == 7)
   }
 }

@@ -1,7 +1,8 @@
-import XCTest
+import Foundation
+import Testing
 import Echo
 
-protocol Testing {
+protocol ProtocolDescriptorFixture {
   associatedtype Hello
   associatedtype World
   
@@ -11,32 +12,32 @@ protocol Testing {
 }
 
 extension EchoTests {
+  @Test
   func testProtocolDescriptor() throws {
-    // Can't reference protocols with associatedtypes yet (!)
-    let metadata = reflect(_typeByName("9EchoTests7TestingP")!) as! ExistentialMetadata
+    let metadata = reflect((any ProtocolDescriptorFixture).self) as! ExistentialMetadata
     let proto = metadata.protocols[0]
     
-    XCTAssertEqual(proto.associatedTypeNames, "Hello World")
-    XCTAssertEqual(proto.name, "Testing")
-    XCTAssertEqual(proto.numRequirements, 6)
-    XCTAssertEqual(proto.numRequirementsInSignature, 0)
-    XCTAssertEqual(proto.protocolFlags.bits, 1)
-    XCTAssertEqual(proto.requirementSignature.count, 0)
+    #expect(proto.associatedTypeNames == "Hello World")
+    #expect(proto.name == "ProtocolDescriptorFixture")
+    #expect(proto.numRequirements == 6)
+    #expect(proto.numRequirementsInSignature == 0)
+    #expect(proto.protocolFlags.bits == 1)
+    #expect(proto.requirementSignature.count == 0)
     
     for (i, requirement) in proto.requirements.enumerated() {
       switch i {
       case 0:
-        XCTAssertEqual(requirement.flags.bits, 7)
+        #expect(requirement.flags.bits == 7)
       case 1:
-        XCTAssertEqual(requirement.flags.bits, 7)
+        #expect(requirement.flags.bits == 7)
       case 2:
-        XCTAssertEqual(requirement.flags.bits, 19)
+        #expect(requirement.flags.bits == 19)
       case 3:
-        XCTAssertEqual(requirement.flags.bits, 20)
+        #expect(requirement.flags.bits == 20)
       case 4:
-        XCTAssertEqual(requirement.flags.bits, 22)
+        #expect(requirement.flags.bits == 22)
       case 5:
-        XCTAssertEqual(requirement.flags.bits, 17)
+        #expect(requirement.flags.bits == 17)
       default:
         break
       }
