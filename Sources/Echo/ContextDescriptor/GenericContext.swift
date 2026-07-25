@@ -596,6 +596,150 @@ public struct GenericMetadataPattern: LayoutWrapper {
   }
 }
 
+/// A typed generic-metadata pattern for structs and enums.
+public struct GenericValueMetadataPattern: LayoutWrapper {
+  typealias Layout = _GenericValueMetadataPattern
+
+  /// Backing generic value metadata pattern pointer.
+  let ptr: UnsafeRawPointer
+
+  /// The common instantiation pattern header.
+  public var metadataPattern: GenericMetadataPattern {
+    GenericMetadataPattern(ptr: ptr)
+  }
+
+  /// The value-witness-table pattern selected for instantiated metadata, if
+  /// the ABI record carries one. The pointer is runtime-private and is exposed
+  /// for inspection only.
+  public var valueWitnessTablePattern: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_GenericValueMetadataPattern>.offset(
+      of: \._valueWitnesses
+    )!
+    let reference = layout._valueWitnesses
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// The extra-data copy pattern, if this generic value pattern carries one.
+  public var extraDataPattern: GenericMetadataPartialPattern? {
+    guard metadataPattern.flags.hasExtraDataPattern else { return nil }
+    return GenericMetadataPartialPattern(
+      ptr: ptr + MemoryLayout<_GenericValueMetadataPattern>.size
+    )
+  }
+}
+
+/// A typed generic-metadata pattern for classes.
+public struct GenericClassMetadataPattern: LayoutWrapper {
+  typealias Layout = _GenericClassMetadataPattern
+
+  /// Backing generic class metadata pattern pointer.
+  let ptr: UnsafeRawPointer
+
+  /// The common instantiation pattern header.
+  public var metadataPattern: GenericMetadataPattern {
+    GenericMetadataPattern(ptr: ptr)
+  }
+
+  /// The runtime-private heap-destroyer entry point. It is exposed for
+  /// inspection only and must not be invoked by clients.
+  public var destroyFunction: UnsafeRawPointer? {
+    functionAddress(for: \._destroy)
+  }
+
+  /// The runtime-private instance-variable destroyer entry point, if one was
+  /// emitted. It is exposed for inspection only and must not be invoked by
+  /// clients.
+  public var ivarDestroyer: UnsafeRawPointer? {
+    functionAddress(for: \._ivarDestroyer)
+  }
+
+  /// Class flags applied to metadata instantiated from this pattern.
+  public var flags: ClassMetadata.Flags {
+    layout._flags
+  }
+
+  /// The offset, in words, of Objective-C class RO data in the extra-data
+  /// pattern. This is meaningful only for Objective-C-interoperable runtimes.
+  public var classRODataOffset: UInt16 {
+    layout._classRODataOffset
+  }
+
+  /// The offset, in words, of the Objective-C metaclass object in the
+  /// extra-data pattern. This is meaningful only for Objective-C-interoperable
+  /// runtimes.
+  public var metaclassObjectOffset: UInt16 {
+    layout._metaclassObjectOffset
+  }
+
+  /// The offset, in words, of Objective-C metaclass RO data in the extra-data
+  /// pattern. This is meaningful only for Objective-C-interoperable runtimes.
+  public var metaclassRODataOffset: UInt16 {
+    layout._metaclassRODataOffset
+  }
+
+  /// The extra-data copy pattern, if this generic class pattern carries one.
+  public var extraDataPattern: GenericMetadataPartialPattern? {
+    guard metadataPattern.flags.hasExtraDataPattern else { return nil }
+    return GenericMetadataPartialPattern(
+      ptr: ptr + MemoryLayout<_GenericClassMetadataPattern>.size
+    )
+  }
+
+  /// The immediate-members copy pattern, if this generic class pattern carries
+  /// one.
+  public var immediateMembersPattern: GenericMetadataPartialPattern? {
+    guard metadataPattern.flags.classHasImmediateMembersPattern else {
+      return nil
+    }
+
+    let offset = MemoryLayout<_GenericClassMetadataPattern>.size
+      + (metadataPattern.flags.hasExtraDataPattern
+        ? MemoryLayout<_GenericMetadataPartialPattern>.stride
+        : 0)
+    return GenericMetadataPartialPattern(ptr: ptr + offset)
+  }
+
+  private func functionAddress(
+    for field: KeyPath<_GenericClassMetadataPattern, RelativeDirectPointer<UnsafeRawPointer>>
+  ) -> UnsafeRawPointer? {
+    let address = ptr + MemoryLayout<_GenericClassMetadataPattern>.offset(of: field)!
+    let reference = layout[keyPath: field]
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: address)
+  }
+}
+
+/// A compact relative copy pattern embedded in a typed generic metadata
+/// pattern.
+public struct GenericMetadataPartialPattern: LayoutWrapper {
+  typealias Layout = _GenericMetadataPartialPattern
+
+  /// Backing partial pattern pointer.
+  let ptr: UnsafeRawPointer
+
+  /// The bytes copied into the instantiated metadata. The pattern is
+  /// runtime-private data and is exposed for inspection only.
+  public var pattern: UnsafeRawPointer? {
+    let field = ptr + MemoryLayout<_GenericMetadataPartialPattern>.offset(
+      of: \._pattern
+    )!
+    let reference = layout._pattern
+    guard reference.isNull == false else { return nil }
+    return reference.address(from: field)
+  }
+
+  /// The destination offset, in machine words, for `pattern`.
+  public var offsetInWords: UInt16 {
+    layout._offsetInWords
+  }
+
+  /// The number of machine words copied from `pattern`.
+  public var sizeInWords: UInt16 {
+    layout._sizeInWords
+  }
+}
+
 struct _GenericContextDescriptorHeader {
   let _numParams: UInt16
   let _numRequirements: UInt16
@@ -626,4 +770,26 @@ struct _GenericMetadataPattern {
   let _instantiationFunction: RelativeDirectPointer<UnsafeRawPointer>
   let _completionFunction: RelativeDirectPointer<UnsafeRawPointer>
   let _flags: GenericMetadataPattern.Flags
+}
+
+struct _GenericValueMetadataPattern {
+  let _base: _GenericMetadataPattern
+  let _valueWitnesses: RelativeIndirectablePointer<UnsafeRawPointer>
+}
+
+struct _GenericClassMetadataPattern {
+  let _base: _GenericMetadataPattern
+  let _destroy: RelativeDirectPointer<UnsafeRawPointer>
+  let _ivarDestroyer: RelativeDirectPointer<UnsafeRawPointer>
+  let _flags: ClassMetadata.Flags
+  let _classRODataOffset: UInt16
+  let _metaclassObjectOffset: UInt16
+  let _metaclassRODataOffset: UInt16
+  let _reserved: UInt16
+}
+
+struct _GenericMetadataPartialPattern {
+  let _pattern: RelativeDirectPointer<UnsafeRawPointer>
+  let _offsetInWords: UInt16
+  let _sizeInWords: UInt16
 }

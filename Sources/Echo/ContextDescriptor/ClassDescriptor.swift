@@ -172,6 +172,13 @@ public struct ClassDescriptor: TypeContextDescriptor, LayoutWrapper {
     return ExtraClassDescriptorFlags(bits: layout._positiveSizeOrExtraFlags)
   }
 
+  /// The typed generic class-metadata pattern for this class, if it is
+  /// generic.
+  public var genericClassMetadataPattern: GenericClassMetadataPattern? {
+    guard flags.isGeneric else { return nil }
+    return GenericClassMetadataPattern(ptr: typeGenericContext.genericMetadataPattern.ptr)
+  }
+
   /// The Objective-C resilient class stub, if this descriptor records one.
   public var objcResilientClassStub: UnsafeRawPointer? {
     guard let offset = trailingLayout.objcResilientClassStub else { return nil }

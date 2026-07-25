@@ -47,6 +47,13 @@ public struct EnumDescriptor: TypeContextDescriptor, LayoutWrapper {
   public var numCases: Int {
     numEmptyCases + numPayloadCases
   }
+
+  /// The typed generic value-metadata pattern for this enum, if it is
+  /// generic.
+  public var genericValueMetadataPattern: GenericValueMetadataPattern? {
+    guard flags.isGeneric else { return nil }
+    return GenericValueMetadataPattern(ptr: typeGenericContext.genericMetadataPattern.ptr)
+  }
   
   /// The foreign metadata initialization info for this enum metadata, if it
   /// has any.

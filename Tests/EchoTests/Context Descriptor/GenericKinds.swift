@@ -13,6 +13,12 @@ private struct NoncopyableGeneric<Element: ~Copyable> {}
 
 private struct NoncopyableContextFixture: ~Copyable {}
 
+private enum GenericPatternEnum<Element> {
+  case value(Element)
+}
+
+private final class GenericPatternClass<Element> {}
+
 extension EchoTests {
   @Test
   func genericParameterKinds() throws {
@@ -197,6 +203,106 @@ extension EchoTests {
       GenericMetadataPattern.Flags(bits: 0x40000000)
         .classHasImmediateMembersPattern == false
     )
+  }
+
+  @Test
+  func typedGenericMetadataPatternsDecodeValueAndClassRecords() throws {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 320, alignment: 8)
+    defer { storage.deallocate() }
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 320)
+
+    let valueAddress = UnsafeRawPointer(storage)
+    let valueWitnesses = valueAddress.advanced(by: 80)
+    let valueBytes = valueAddress.advanced(by: 96)
+    storage.storeBytes(
+      of: _GenericValueMetadataPattern(
+        _base: _GenericMetadataPattern(
+          _instantiationFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 64),
+          _completionFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 0),
+          _flags: GenericMetadataPattern.Flags(bits: 0x1)
+        ),
+        _valueWitnesses: RelativeIndirectablePointer<UnsafeRawPointer>(offset: 68)
+      ),
+      as: _GenericValueMetadataPattern.self
+    )
+    storage.storeBytes(
+      of: _GenericMetadataPartialPattern(
+        _pattern: RelativeDirectPointer<UnsafeRawPointer>(offset: 80),
+        _offsetInWords: 3,
+        _sizeInWords: 7
+      ),
+      toByteOffset: 16,
+      as: _GenericMetadataPartialPattern.self
+    )
+
+    let valuePattern = GenericValueMetadataPattern(ptr: valueAddress)
+    #expect(valuePattern.metadataPattern.instantiationFunction == valueAddress.advanced(by: 64))
+    #expect(valuePattern.valueWitnessTablePattern == valueWitnesses)
+    let extraData = try #require(valuePattern.extraDataPattern)
+    #expect(extraData.pattern == valueBytes)
+    #expect(extraData.offsetInWords == 3)
+    #expect(extraData.sizeInWords == 7)
+
+    let classAddress = UnsafeRawPointer(storage + 128)
+    let destroy = classAddress.advanced(by: 80)
+    let ivarDestroyer = classAddress.advanced(by: 96)
+    let classExtraData = classAddress.advanced(by: 112)
+    let immediateMembers = classAddress.advanced(by: 120)
+    storage.storeBytes(
+      of: _GenericClassMetadataPattern(
+        _base: _GenericMetadataPattern(
+          _instantiationFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 0),
+          _completionFunction: RelativeDirectPointer<UnsafeRawPointer>(offset: 0),
+          _flags: GenericMetadataPattern.Flags(bits: 0x80000001)
+        ),
+        _destroy: RelativeDirectPointer<UnsafeRawPointer>(offset: 68),
+        _ivarDestroyer: RelativeDirectPointer<UnsafeRawPointer>(offset: 80),
+        _flags: ClassMetadata.Flags(bits: 0x18),
+        _classRODataOffset: 2,
+        _metaclassObjectOffset: 3,
+        _metaclassRODataOffset: 4,
+        _reserved: 0
+      ),
+      toByteOffset: 128,
+      as: _GenericClassMetadataPattern.self
+    )
+    storage.storeBytes(
+      of: _GenericMetadataPartialPattern(
+        _pattern: RelativeDirectPointer<UnsafeRawPointer>(offset: 80),
+        _offsetInWords: 5,
+        _sizeInWords: 6
+      ),
+      toByteOffset: 160,
+      as: _GenericMetadataPartialPattern.self
+    )
+    storage.storeBytes(
+      of: _GenericMetadataPartialPattern(
+        _pattern: RelativeDirectPointer<UnsafeRawPointer>(offset: 80),
+        _offsetInWords: 7,
+        _sizeInWords: 8
+      ),
+      toByteOffset: 168,
+      as: _GenericMetadataPartialPattern.self
+    )
+
+    let classPattern = GenericClassMetadataPattern(ptr: classAddress)
+    #expect(classPattern.destroyFunction == destroy)
+    #expect(classPattern.ivarDestroyer == ivarDestroyer)
+    #expect(classPattern.flags.isStaticSpecialization)
+    #expect(classPattern.flags.isCanonicalStaticSpecialization)
+    #expect(classPattern.classRODataOffset == 2)
+    #expect(classPattern.metaclassObjectOffset == 3)
+    #expect(classPattern.metaclassRODataOffset == 4)
+    #expect(classPattern.extraDataPattern?.pattern == classExtraData)
+    #expect(classPattern.immediateMembersPattern?.pattern == immediateMembers)
+
+    let genericStruct = try #require(reflectStruct(PlainGeneric<Int, String>.self))
+    #expect(genericStruct.descriptor.genericValueMetadataPattern != nil)
+    let genericEnum = try #require(reflect(GenericPatternEnum<Int>.self) as? EnumMetadata)
+    #expect(genericEnum.descriptor.genericValueMetadataPattern != nil)
+    let genericClass = try #require(reflectClass(GenericPatternClass<Int>.self))
+    let genericClassDescriptor = try #require(genericClass.descriptor)
+    #expect(genericClassDescriptor.genericClassMetadataPattern != nil)
   }
 
   @Test

@@ -34,6 +34,13 @@ public struct StructDescriptor: TypeContextDescriptor, LayoutWrapper {
   public var fieldOffsetVectorOffset: Int {
     Int(layout._fieldOffsetVectorOffset)
   }
+
+  /// The typed generic value-metadata pattern for this struct, if it is
+  /// generic.
+  public var genericValueMetadataPattern: GenericValueMetadataPattern? {
+    guard flags.isGeneric else { return nil }
+    return GenericValueMetadataPattern(ptr: typeGenericContext.genericMetadataPattern.ptr)
+  }
   
   /// The foreign metadata initialization info for this struct metadata, if it
   /// has any.
