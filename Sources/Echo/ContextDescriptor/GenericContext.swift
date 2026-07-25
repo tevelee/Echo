@@ -37,8 +37,11 @@ public struct GenericContext: LayoutWrapper {
   }
   
   /// The number of "extra" generic parameters this context has.
+  ///
+  /// This value is always zero in current Swift ABIs. The storage formerly
+  /// used for it now holds `descriptorFlags`.
   public var numExtraArguments: Int {
-    Int(layout._numExtraArguments)
+    0
   }
   
   /// The number of bytes the parameters take up.
@@ -87,7 +90,107 @@ public struct GenericContext: LayoutWrapper {
   /// Number of bytes this generic context is.
   public var size: Int {
     let base = MemoryLayout<_GenericContextDescriptorHeader>.size
-    return base + parameterSize + requirementSize
+    return base + parameterSize + requirementSize + packShapeSize
+  }
+
+  /// Flags describing the trailing records carried by this generic context.
+  public var descriptorFlags: GenericContextDescriptorFlags {
+    GenericContextDescriptorFlags(bits: layout._numExtraArguments)
+  }
+
+  /// The pack-shape header for a variadic-generic context, if present.
+  public var packShapeHeader: GenericPackShapeHeader? {
+    guard descriptorFlags.hasTypePacks else {
+      return nil
+    }
+
+    return (trailing + parameterSize + requirementSize)
+      .load(as: GenericPackShapeHeader.self)
+  }
+
+  /// Shape descriptors for each metadata or witness-table pack in this
+  /// context. The ABI records one descriptor per pack, not per shape class.
+  public var packShapeDescriptors: [GenericPackShapeDescriptor] {
+    guard let header = packShapeHeader else {
+      return []
+    }
+
+    let base = trailing + parameterSize + requirementSize
+      + MemoryLayout<GenericPackShapeHeader>.size
+    let count = Int(header.numPacks)
+
+    return Array(unsafeUninitializedCapacity: count) {
+      for index in 0 ..< count {
+        $0[index] = base.load(
+          fromByteOffset: index * MemoryLayout<GenericPackShapeDescriptor>.stride,
+          as: GenericPackShapeDescriptor.self
+        )
+      }
+      $1 = count
+    }
+  }
+
+  private var packShapeSize: Int {
+    guard let header = packShapeHeader else {
+      return 0
+    }
+
+    return MemoryLayout<GenericPackShapeHeader>.size
+      + Int(header.numPacks) * MemoryLayout<GenericPackShapeDescriptor>.stride
+  }
+}
+
+/// Flags describing modern generic-context trailing records.
+public struct GenericContextDescriptorFlags {
+  /// Flags as represented in bits.
+  public let bits: UInt16
+
+  /// Whether the context contains at least one `each` type parameter.
+  public var hasTypePacks: Bool {
+    bits & 0x1 != 0
+  }
+
+  /// Whether the context carries conditional inverted-protocol requirements.
+  public var hasConditionalInvertedProtocols: Bool {
+    bits & 0x2 != 0
+  }
+
+  /// Whether the context contains at least one value generic parameter.
+  public var hasValues: Bool {
+    bits & 0x4 != 0
+  }
+}
+
+/// Header preceding a generic context's pack-shape descriptors.
+public struct GenericPackShapeHeader {
+  /// Number of parameter and conformance-requirement packs.
+  public let numPacks: UInt16
+
+  /// Number of equivalence classes in the same-shape relation.
+  public let numShapeClasses: UInt16
+}
+
+/// The kind of generic argument pack described by a pack-shape descriptor.
+public enum GenericPackKind: UInt16 {
+  case metadata = 0
+  case witnessTable = 1
+}
+
+/// Describes one metadata or witness-table pack and its shape equivalence class.
+public struct GenericPackShapeDescriptor {
+  private let rawKind: UInt16
+
+  /// Index of this pack in the generic arguments layout.
+  public let index: UInt16
+
+  /// Same-shape equivalence class for this pack.
+  public let shapeClass: UInt16
+
+  private let unused: UInt16
+
+  /// The kind of pack, or `nil` for an ABI kind Echo does not yet understand.
+  public var kind: GenericPackKind? {
+    GenericPackKind(rawValue: rawKind)
   }
 }
 
@@ -116,10 +219,12 @@ public struct GenericRequirementDescriptor: LayoutWrapper {
     address(for: \._param)
   }
   
-  /// If this requirement is a sameType or baseClass, this is the mangled name
-  /// for the type that's being constrained.
+  /// If this requirement is a same-type, base-class, or same-shape
+  /// requirement, this is the mangled name for the constrained type or pack.
   public var mangledTypeName: UnsafeRawPointer {
-    assert(flags.kind == .sameType || flags.kind == .baseClass)
+    assert(
+      flags.kind == .sameType || flags.kind == .baseClass || flags.kind == .sameShape
+    )
     let addr = address(for: \._requirement)
     return addr.relativeDirectAddress(as: CChar.self)
   }

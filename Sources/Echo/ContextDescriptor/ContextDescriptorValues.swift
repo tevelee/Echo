@@ -145,9 +145,10 @@ public struct GenericParameterDescriptor {
     GenericParameterKind(rawValue: bits & 0x3F)!
   }
   
-  /// Unsure what this means, it's always false for the time being.
+  /// This bit is reserved for compatibility with pre-Swift 5.8 runtimes and
+  /// must not be interpreted as an extra argument in current metadata.
   public var hasExtraArgument: Bool {
-    bits & 0x40 != 0
+    false
   }
   
   /// "Key" refers to a generic param whose metadata is provided at runtime.
@@ -184,14 +185,25 @@ extension GenericRequirementDescriptor {
       GenericRequirementKind(rawValue: UInt8(bits & 0x1F))!
     }
     
-    /// Whether this generic requirement has an "extra" argument.
+    /// This bit is reserved for compatibility with pre-Swift 5.8 runtimes and
+    /// must not be interpreted as an extra argument in current metadata.
     public var hasExtraArgument: Bool {
-      bits & 0x40 != 0
+      false
+    }
+
+    /// Whether the subject of this requirement is a parameter pack.
+    public var isPackRequirement: Bool {
+      bits & 0x20 != 0
     }
     
     /// Whether this generic requirement has a "key" argument.
     public var hasKeyArgument: Bool {
       bits & 0x80 != 0
+    }
+
+    /// Whether the subject of this requirement is a value parameter.
+    public var isValueRequirement: Bool {
+      bits & 0x100 != 0
     }
   }
 }
