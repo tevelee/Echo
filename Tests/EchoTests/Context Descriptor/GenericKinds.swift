@@ -29,6 +29,21 @@ extension EchoTests {
     #expect(packContext.packShapeDescriptors.count == Int(header.numPacks))
     #expect(packContext.packShapeDescriptors.contains { $0.kind == .metadata })
 
+    let packArguments = pack.genericArguments
+    guard case let .packLength(length) = packArguments.first else {
+      Issue.record("Expected a leading pack-length argument.")
+      return
+    }
+    #expect(length == 3)
+    guard packArguments.dropFirst().contains(where: {
+      if case .metadataPack = $0 { return true }
+      return false
+    }) else {
+      Issue.record("Expected a metadata-pack argument.")
+      return
+    }
+    #expect(pack.genericTypes.isEmpty)
+
     #expect(plainContext.descriptorFlags.hasTypePacks == false)
     #expect(plainContext.packShapeHeader == nil)
     #expect(plainContext.packShapeDescriptors.isEmpty)

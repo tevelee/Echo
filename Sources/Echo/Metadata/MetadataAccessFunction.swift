@@ -47,6 +47,49 @@ public struct MetadataAccessFunction {
     let response = echo_callAccessor0(ptr, request.bits)
     return unsafeBitCast(response, to: Echo.MetadataResponse.self)
   }
+
+  /// Calls the metadata accessor with a complete, typed generic argument
+  /// layout. This supports type packs and value generics in addition to the
+  /// legacy metadata-and-witness-table forms.
+  ///
+  /// The arguments must be ordered exactly as specified by the target type's
+  /// generic context. `TypeMetadata.genericArguments` returns that layout for
+  /// an existing specialization.
+  public func callAsFunction(
+    _ request: MetadataRequest,
+    genericArguments: [GenericArgument]
+  ) -> Echo.MetadataResponse {
+    let words = genericArguments.map(\.abiWord)
+    var response: CEcho.MetadataResponse
+
+    switch words.count {
+    case 0:
+      response = echo_callAccessor0(ptr, request.bits)
+    case 1:
+      response = echo_callAccessor1(ptr, request.bits, UnsafeRawPointer(bitPattern: words[0]))
+    case 2:
+      response = echo_callAccessor2(
+        ptr,
+        request.bits,
+        UnsafeRawPointer(bitPattern: words[0]),
+        UnsafeRawPointer(bitPattern: words[1])
+      )
+    case 3:
+      response = echo_callAccessor3(
+        ptr,
+        request.bits,
+        UnsafeRawPointer(bitPattern: words[0]),
+        UnsafeRawPointer(bitPattern: words[1]),
+        UnsafeRawPointer(bitPattern: words[2])
+      )
+    default:
+      response = words.withUnsafeBytes {
+        echo_callAccessor(ptr, request.bits, $0.baseAddress)
+      }
+    }
+
+    return unsafeBitCast(response, to: Echo.MetadataResponse.self)
+  }
   
   /// Calls the metadata access function for a type who has no conformances on
   /// their generic parameters.

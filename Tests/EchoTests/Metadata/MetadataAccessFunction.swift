@@ -13,6 +13,8 @@ struct FooBaz2<T: Equatable, U: Equatable> {}
 struct FooBaz3<T: Equatable, U: Equatable, V: Equatable> {}
 struct FooBaz4<T: Equatable, U: Equatable, V: Equatable, W: Equatable> {}
 
+private struct AccessorPackFixture<each Element> {}
+
 enum MetadataAccessFunctionTests {
   static func testPlain() throws {
     // 0 ARG
@@ -154,6 +156,36 @@ enum MetadataAccessFunctionTests {
     #expect(response.state == .complete)
     #expect(typesEqual(response.type, FooBaz2<Int, Double>.self))
   }
+
+  static func testTypedGenericArguments() throws {
+    let plain = try #require(reflectStruct(FooBar1<Int>.self))
+    let plainResponse = plain.descriptor.accessor(
+      .complete,
+      genericArguments: [.metadata(Double.self)]
+    )
+    #expect(typesEqual(plainResponse.type, FooBar1<Double>.self))
+
+    let constrained = try #require(reflectStruct(FooBaz1<Double>.self))
+    let constrainedArguments = constrained.genericArguments
+    #expect(constrainedArguments.count == 2)
+    guard case .metadata = constrainedArguments[0],
+          case .witnessTable = constrainedArguments[1]
+    else {
+      Issue.record("Expected metadata followed by a witness-table argument.")
+      return
+    }
+
+    let accessor = try #require(reflectStruct(FooBaz1<Int>.self)?.descriptor.accessor)
+    let constrainedResponse = accessor(.complete, genericArguments: constrainedArguments)
+    #expect(typesEqual(constrainedResponse.type, FooBaz1<Double>.self))
+
+    let pack = try #require(reflectStruct(AccessorPackFixture<Int, String, Bool>.self))
+    let packResponse = pack.descriptor.accessor(
+      .complete,
+      genericArguments: pack.genericArguments
+    )
+    #expect(typesEqual(packResponse.type, AccessorPackFixture<Int, String, Bool>.self))
+  }
 }
 
 extension EchoTests {
@@ -162,5 +194,6 @@ extension EchoTests {
     try MetadataAccessFunctionTests.testPlain()
     try MetadataAccessFunctionTests.testWitnessTable()
     try MetadataAccessFunctionTests.testWitnessTableDistinctArgs()
+    try MetadataAccessFunctionTests.testTypedGenericArguments()
   }
 }

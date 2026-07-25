@@ -19,6 +19,47 @@ import Foundation
 ///
 public protocol TypeMetadata: Metadata {}
 
+/// One word in a generic metadata argument layout.
+///
+/// Swift 6 generic layouts can contain packs and value arguments in addition
+/// to ordinary type metadata and witness tables. The cases preserve that ABI
+/// distinction rather than interpreting every word as an `Any.Type`.
+public enum GenericArgument {
+  /// The runtime length of a type-parameter pack.
+  case packLength(Int)
+
+  /// Metadata for an ordinary type parameter.
+  case metadata(Any.Type)
+
+  /// A pointer to a runtime metadata pack.
+  case metadataPack(UnsafeRawPointer)
+
+  /// A witness table for an ordinary protocol requirement.
+  case witnessTable(WitnessTable)
+
+  /// A pointer to a runtime witness-table pack.
+  case witnessTablePack(UnsafeRawPointer)
+
+  /// A raw value argument. Its representation is described by the generic
+  /// context's `GenericValueDescriptor` records.
+  case value(UInt)
+
+  var abiWord: UInt {
+    switch self {
+    case let .packLength(length):
+      return UInt(bitPattern: length)
+    case let .metadata(type):
+      return UInt(bitPattern: unsafeBitCast(type, to: UnsafeRawPointer.self))
+    case let .metadataPack(pointer), let .witnessTablePack(pointer):
+      return UInt(bitPattern: pointer)
+    case let .witnessTable(table):
+      return UInt(bitPattern: table.ptr)
+    case let .value(value):
+      return value
+    }
+  }
+}
+
 extension TypeMetadata {
   /// The list of conformances defined for this type metadata.
   ///
@@ -90,31 +131,90 @@ extension TypeMetadata {
     }
   }
   
-  /// An array of types that represent the generic arguments that make up this
-  /// type.
-  public var genericTypes: [Any.Type] {
+  /// The generic argument layout for this type.
+  ///
+  /// The result includes pack lengths, metadata packs, witness-table packs,
+  /// and value arguments when the context uses them. Unknown future argument
+  /// forms fail closed as an empty result instead of being reinterpreted as a
+  /// metatype.
+  public var genericArguments: [GenericArgument] {
     guard let contextDescriptor = contextDescriptor,
           contextDescriptor.flags.isGeneric,
           // Explicitly only call this once because class metadata could require
           // computation, so only do it once if needed.
-          let gap = genericArgumentPtr else {
+          let gap = genericArgumentPtr,
+          let context = contextDescriptor.genericContext else {
       return []
     }
-    
-    let numParams = contextDescriptor.genericContext!.numParams
-    
-    return Array(unsafeUninitializedCapacity: numParams) {
-      for i in 0 ..< numParams {
-        let type = gap.load(
-          fromByteOffset: i * MemoryLayout<Any.Type>.stride,
-          as: Any.Type.self
-        )
-        
-        $0[i] = type
-      }
-      
-      $1 = numParams
+
+    var offset = 0
+    var arguments = [GenericArgument]()
+
+    func word() -> UInt {
+      defer { offset += 1 }
+      return gap.load(
+        fromByteOffset: offset * MemoryLayout<UInt>.stride,
+        as: UInt.self
+      )
     }
+
+    // Pack lengths are stored before all parameter metadata.
+    for parameter in context.parameters
+    where parameter.kind == .typePack && parameter.hasKeyArgument {
+      let length = Int(bitPattern: word())
+      guard length >= 0 else { return [] }
+      arguments.append(.packLength(length))
+    }
+
+    for parameter in context.parameters where parameter.hasKeyArgument {
+      switch parameter.kind {
+      case .type:
+        arguments.append(.metadata(unsafeBitCast(word(), to: Any.Type.self)))
+      case .typePack:
+        guard let pointer = UnsafeRawPointer(bitPattern: word()) else { return [] }
+        arguments.append(.metadataPack(pointer))
+      case .value:
+        arguments.append(.value(word()))
+      }
+    }
+
+    for requirement in context.requirements where requirement.flags.hasKeyArgument {
+      guard requirement.flags.kind == .protocol else { return [] }
+      guard let pointer = UnsafeRawPointer(bitPattern: word()) else { return [] }
+
+      if requirement.flags.isPackRequirement {
+        arguments.append(.witnessTablePack(pointer))
+      } else {
+        arguments.append(.witnessTable(WitnessTable(ptr: pointer)))
+      }
+    }
+
+    guard offset == context.numKeyArguments else { return [] }
+    return arguments
+  }
+
+  /// The ordinary type arguments for a type-only generic context.
+  ///
+  /// This compatibility convenience deliberately returns an empty array for
+  /// packs, values, non-key parameters, or unknown layouts. Use
+  /// `genericArguments` for all modern generic contexts.
+  public var genericTypes: [Any.Type] {
+    guard let context = contextDescriptor?.genericContext,
+          context.parameters.allSatisfy({
+            $0.kind == .type && $0.hasKeyArgument
+          })
+    else { return [] }
+
+    let arguments = genericArguments
+    guard arguments.count >= context.numParams else { return [] }
+
+    let types = arguments.prefix(context.numParams).compactMap { argument -> Any.Type? in
+      guard case let .metadata(type) = argument else { return nil }
+      return type
+    }
+
+    guard types.count == context.numParams else { return [] }
+    return types
   }
   
   /// An array of metadata records for the types that represent the generic
