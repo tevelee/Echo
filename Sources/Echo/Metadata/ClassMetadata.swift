@@ -30,6 +30,20 @@ public struct ClassMetadata: TypeMetadata, LayoutWrapper {
     
     return nil
   }
+
+  /// Whether this class is an `actor`.
+  ///
+  /// This is always `false` for non-Swift classes.
+  public var isActor: Bool {
+    isSwiftClass && descriptor?.typeFlags.classIsActor == true
+  }
+
+  /// Whether this actor uses the runtime's default executor.
+  ///
+  /// This is always `false` for non-Swift classes.
+  public var isDefaultActor: Bool {
+    isSwiftClass && descriptor?.typeFlags.classIsDefaultActor == true
+  }
   
   /// The Objective-C ISA pointer, if it has one.
   public var isaPointer: UnsafeRawPointer? {

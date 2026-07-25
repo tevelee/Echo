@@ -314,6 +314,26 @@ public struct TypeContextDescriptorFlags {
   public var hasImportInfo: Bool {
     bits & 0x4 != 0
   }
+
+  /// Whether this type's metadata carries a compact layout string.
+  public var hasLayoutString: Bool {
+    bits & 0x10 != 0
+  }
+
+  /// Whether this class has a default override table.
+  public var classHasDefaultOverrideTable: Bool {
+    bits & 0x40 != 0
+  }
+
+  /// Whether this class is an `actor`.
+  public var classIsActor: Bool {
+    bits & 0x80 != 0
+  }
+
+  /// Whether this actor uses the runtime's default executor.
+  public var classIsDefaultActor: Bool {
+    bits & 0x100 != 0
+  }
   
   /// The resilient superclass type reference kind.
   public var resilientSuperclassRefKind: TypeReferenceKind {

@@ -174,6 +174,31 @@ extension FunctionMetadata {
     public var isEscaping: Bool {
       bits & 0x4000000 != 0
     }
+
+    /// Whether this function is `@differentiable`.
+    public var isDifferentiable: Bool {
+      bits & 0x8000000 != 0
+    }
+
+    /// Whether this function is isolated to a global actor.
+    public var hasGlobalActor: Bool {
+      bits & 0x10000000 != 0
+    }
+
+    /// Whether this function is `async`.
+    public var isAsync: Bool {
+      bits & 0x20000000 != 0
+    }
+
+    /// Whether this function is `@Sendable`.
+    public var isSendable: Bool {
+      bits & 0x40000000 != 0
+    }
+
+    /// Whether this function has extended trailing flags.
+    public var hasExtendedFlags: Bool {
+      bits & 0x80000000 != 0
+    }
   }
 }
 
@@ -237,6 +262,8 @@ extension ValueWitnessTable {
       case isNonBitwiseTakable = 0x100000
       case hasEnumWitnesses    = 0x200000
       case incomplete          = 0x400000
+      case isNonCopyable       = 0x800000
+      case isNonBitwiseBorrowable = 0x1000000
     }
     
     /// Flags as represented in bits.
@@ -276,6 +303,16 @@ extension ValueWitnessTable {
     /// Whether or not this value witness table is incomplete.
     public var isIncomplete: Bool {
       bits & Flags.incomplete.rawValue != 0
+    }
+
+    /// Whether this type can be copied.
+    public var isCopyable: Bool {
+      bits & Flags.isNonCopyable.rawValue == 0
+    }
+
+    /// Whether this type can be borrowed by bitwise operations.
+    public var isBitwiseBorrowable: Bool {
+      isBitwiseTakable && bits & Flags.isNonBitwiseBorrowable.rawValue == 0
     }
   }
 }

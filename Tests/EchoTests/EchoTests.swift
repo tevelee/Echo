@@ -22,6 +22,7 @@ final class EchoTests: XCTestCase {
     ("testExistentialMetadata", testExistentialMetadata),
     ("testExistentialMetatypeMetadata", testExistentialMetatypeMetadata),
     ("testFunctionMetadata", testFunctionMetadata),
+    ("testMetadataFlags", testMetadataFlags),
     ("testMetadataAccessFunction", testMetadataAccessFunction),
     ("testMetatypeMetadata", testMetatypeMetadata),
     ("testObjCClassWrapperMetadata", testObjCClassWrapperMetadata),
