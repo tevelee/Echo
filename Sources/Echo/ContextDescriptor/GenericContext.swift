@@ -451,6 +451,24 @@ public struct GenericRequirementDescriptor: LayoutWrapper {
     assert(flags.kind == .layout)
     return GenericRequirementLayoutKind(rawValue: UInt32(layout._requirement))!
   }
+
+  /// The capability protocols inverted by this requirement, such as
+  /// `Copyable` for a `~Copyable` generic parameter.
+  public var invertedProtocols: InvertibleProtocolSet {
+    precondition(flags.kind == .invertedProtocols)
+    return InvertibleProtocolSet(
+      bits: UInt16(truncatingIfNeeded: UInt32(bitPattern: layout._requirement) >> 16)
+    )
+  }
+
+  /// The generic parameter affected by `invertedProtocols`.
+  ///
+  /// `UInt16.max` means the constraint applies to the requirement subject
+  /// rather than a direct generic parameter.
+  public var invertedProtocolsGenericParameterIndex: UInt16 {
+    precondition(flags.kind == .invertedProtocols)
+    return UInt16(truncatingIfNeeded: layout._requirement)
+  }
 }
 
 /// A type generic context is an extension of a generic context for contexts

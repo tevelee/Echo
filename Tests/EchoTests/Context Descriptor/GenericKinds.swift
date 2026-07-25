@@ -55,6 +55,11 @@ extension EchoTests {
         $0.flags.kind == .invertedProtocols
       }
     )
+    let invertedRequirement = try #require(noncopyableContext.requirements.first {
+      $0.flags.kind == .invertedProtocols
+    })
+    #expect(invertedRequirement.invertedProtocols.invertsCopyable)
+    #expect(invertedRequirement.invertedProtocolsGenericParameterIndex == 0)
   }
 
   @Test
