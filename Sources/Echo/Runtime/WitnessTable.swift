@@ -49,6 +49,47 @@ extension WitnessTable: Equatable {
   }
 }
 
+/// A protocol witness table whose entries use relative pointers.
+///
+/// Some Swift runtime builds use this representation to reduce relocation
+/// overhead. Its requirement entries remain protocol-specific and opaque, but
+/// the leading conformance descriptor is always inspectable.
+///
+/// Do not pass a `RelativeWitnessTable` to APIs expecting `WitnessTable`:
+/// their entries have different physical representations.
+public struct RelativeWitnessTable: LayoutWrapper {
+  typealias Layout = _RelativeWitnessTable
+
+  /// The raw pointer to the relative witness table in memory.
+  public let ptr: UnsafeRawPointer
+
+  /// Initializes a relative witness table from a raw pointer.
+  /// - Parameter ptr: A pointer to the table's memory layout.
+  public init(ptr: UnsafeRawPointer) {
+    self.ptr = ptr
+  }
+
+  /// The conformance descriptor that describes this protocol conformance.
+  public var conformanceDescriptor: ConformanceDescriptor {
+    let field = ptr + MemoryLayout<_RelativeWitnessTable>.offset(
+      of: \._conformance
+    )!
+    return ConformanceDescriptor(
+      ptr: layout._conformance.address(from: field)
+    )
+  }
+}
+
+extension RelativeWitnessTable: Equatable {
+  public static func == (lhs: RelativeWitnessTable, rhs: RelativeWitnessTable) -> Bool {
+    lhs.ptr == rhs.ptr
+  }
+}
+
 struct _WitnessTable {
   let _conformance: ConformanceDescriptor
+}
+
+struct _RelativeWitnessTable {
+  let _conformance: RelativeIndirectablePointer<_ConformanceDescriptor>
 }

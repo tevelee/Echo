@@ -95,6 +95,37 @@ extension EchoTests {
   }
 
   @Test
+  func relativeWitnessTablesResolveDirectAndIndirectConformanceDescriptors() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 160, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 160)
+    defer { storage.deallocate() }
+
+    storage.storeBytes(
+      of: _RelativeWitnessTable(
+        _conformance: RelativeIndirectablePointer<_ConformanceDescriptor>(offset: 96)
+      ),
+      as: _RelativeWitnessTable.self
+    )
+    let direct = RelativeWitnessTable(ptr: UnsafeRawPointer(storage))
+    #expect(direct.conformanceDescriptor.ptr == UnsafeRawPointer(storage + 96))
+
+    storage.storeBytes(
+      of: UnsafeRawPointer(storage + 120),
+      toByteOffset: 32,
+      as: UnsafeRawPointer.self
+    )
+    storage.storeBytes(
+      of: _RelativeWitnessTable(
+        _conformance: RelativeIndirectablePointer<_ConformanceDescriptor>(offset: 17)
+      ),
+      toByteOffset: 16,
+      as: _RelativeWitnessTable.self
+    )
+    let indirect = RelativeWitnessTable(ptr: UnsafeRawPointer(storage + 16))
+    #expect(indirect.conformanceDescriptor.ptr == UnsafeRawPointer(storage + 120))
+  }
+
+  @Test
   func conformanceTrailerOrderingIncludesResilientGenericAndActorRecords() {
     let storage = UnsafeMutableRawPointer.allocate(byteCount: 96, alignment: 8)
     storage.initializeMemory(as: UInt8.self, repeating: 0, count: 96)
