@@ -52,6 +52,49 @@ extension EchoTests {
   }
 
   @Test
+  func conformancePointerRecordsResolveFromPhysicalFields() {
+    let storage = UnsafeMutableRawPointer.allocate(byteCount: 160, alignment: 8)
+    storage.initializeMemory(as: UInt8.self, repeating: 0, count: 160)
+    defer { storage.deallocate() }
+
+    storage.storeBytes(
+      of: _ResilientWitness(
+        _requirement: RelativeIndirectablePointer<_ProtocolRequirement>(offset: 32),
+        _implementation: RelativeDirectPointer<Void>(offset: 60)
+      ),
+      as: _ResilientWitness.self
+    )
+    let resilientWitness = ResilientWitness(ptr: UnsafeRawPointer(storage))
+    #expect(resilientWitness.requirement?.ptr == UnsafeRawPointer(storage + 32))
+    #expect(resilientWitness.implementation == UnsafeRawPointer(storage + 64))
+
+    storage.storeBytes(
+      of: _GenericWitnessTable(
+        _sizeInWords: 0,
+        _privateSizeAndRequiresInstantiation: 0,
+        _instantiator: RelativeDirectPointer<Void>(offset: 60),
+        _privateData: RelativeDirectPointer<Void>(offset: 64)
+      ),
+      toByteOffset: 16,
+      as: _GenericWitnessTable.self
+    )
+    let genericWitnessTable = GenericWitnessTable(ptr: UnsafeRawPointer(storage + 16))
+    #expect(genericWitnessTable.instantiator == UnsafeRawPointer(storage + 80))
+    #expect(genericWitnessTable.privateData == UnsafeRawPointer(storage + 88))
+
+    storage.storeBytes(
+      of: _GlobalActorReference(
+        _type: RelativeDirectPointer<CChar>(offset: 0),
+        _conformance: RelativeIndirectablePointer<_ConformanceDescriptor>(offset: 12)
+      ),
+      toByteOffset: 96,
+      as: _GlobalActorReference.self
+    )
+    let globalActor = GlobalActorReference(ptr: UnsafeRawPointer(storage + 96))
+    #expect(globalActor.conformance?.ptr == UnsafeRawPointer(storage + 112))
+  }
+
+  @Test
   func conformanceTrailerOrderingIncludesResilientGenericAndActorRecords() {
     let storage = UnsafeMutableRawPointer.allocate(byteCount: 96, alignment: 8)
     storage.initializeMemory(as: UInt8.self, repeating: 0, count: 96)

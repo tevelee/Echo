@@ -232,7 +232,7 @@ public struct ResilientWitness: LayoutWrapper {
 
   /// The requirement implemented by this witness, if the entry is non-null.
   public var requirement: ProtocolRequirement? {
-    let field = address(for: \._requirement)
+    let field = ptr + MemoryLayout<_ResilientWitness>.offset(of: \._requirement)!
     let reference = layout._requirement
     guard reference.isNull == false else { return nil }
     return ProtocolRequirement(ptr: reference.address(from: field))
@@ -240,7 +240,7 @@ public struct ResilientWitness: LayoutWrapper {
 
   /// The opaque implementation pointer. It must not be invoked directly.
   public var implementation: UnsafeRawPointer? {
-    let field = address(for: \._implementation)
+    let field = ptr + MemoryLayout<_ResilientWitness>.offset(of: \._implementation)!
     guard layout._implementation.isNull == false else { return nil }
     return layout._implementation.address(from: field)
   }
@@ -269,14 +269,14 @@ public struct GenericWitnessTable: LayoutWrapper {
 
   /// The opaque instantiation function pointer, if present.
   public var instantiator: UnsafeRawPointer? {
-    let field = address(for: \._instantiator)
+    let field = ptr + MemoryLayout<_GenericWitnessTable>.offset(of: \._instantiator)!
     guard layout._instantiator.isNull == false else { return nil }
     return layout._instantiator.address(from: field)
   }
 
   /// Private instantiation data, if the compiler emitted it.
   public var privateData: UnsafeRawPointer? {
-    let field = address(for: \._privateData)
+    let field = ptr + MemoryLayout<_GenericWitnessTable>.offset(of: \._privateData)!
     guard layout._privateData.isNull == false else { return nil }
     return layout._privateData.address(from: field)
   }
@@ -306,7 +306,7 @@ public struct GlobalActorReference: LayoutWrapper {
 
   /// The global actor's conformance to `GlobalActor`.
   public var conformance: ConformanceDescriptor? {
-    let field = address(for: \._conformance)
+    let field = ptr + MemoryLayout<_GlobalActorReference>.offset(of: \._conformance)!
     let reference = layout._conformance
     guard reference.isNull == false else { return nil }
     return ConformanceDescriptor(ptr: reference.address(from: field))
