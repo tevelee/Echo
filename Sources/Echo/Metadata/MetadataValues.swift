@@ -247,10 +247,10 @@ extension FunctionMetadata {
 
     /// Whether this function has extended trailing flags.
     public var hasExtendedFlags: Bool {
-      // `bits` remains `Int` for source compatibility. Use the signed form
-      // of bit 31 so the mask is representable on 32-bit targets such as
-      // wasm32 as well as on 64-bit hosts.
-      bits & Int(Int32.min) != 0
+      // `bits` remains `Int` for source compatibility. The truncating
+      // conversion preserves bit 31 on 32-bit targets without sign-extending
+      // it into the upper 32 bits on 64-bit hosts.
+      bits & Int(truncatingIfNeeded: UInt32(1) << 31) != 0
     }
   }
 }

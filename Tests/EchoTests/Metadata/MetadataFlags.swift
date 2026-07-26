@@ -65,6 +65,18 @@ extension EchoTests {
     MetadataFlagsTests.testFunctionFlags()
     MetadataFlagsTests.testActorFlags()
 
+    let extendedFunctionFlags = FunctionMetadata.Flags(
+      bits: Int(truncatingIfNeeded: UInt32(1) << 31)
+    )
+    #expect(extendedFunctionFlags.hasExtendedFlags)
+
+    if Int.bitWidth > 32 {
+      let upperWordFlag = FunctionMetadata.Flags(
+        bits: Int(truncatingIfNeeded: UInt64(1) << 32)
+      )
+      #expect(upperWordFlag.hasExtendedFlags == false)
+    }
+
     let staticSpecialization = ClassMetadata.Flags(bits: 0x8)
     #expect(staticSpecialization.isStaticSpecialization)
     #expect(staticSpecialization.isCanonicalStaticSpecialization == false)
