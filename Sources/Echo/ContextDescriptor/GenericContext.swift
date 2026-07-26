@@ -51,7 +51,9 @@ public struct GenericContext: LayoutWrapper {
   
   /// An array of all the generic parameters this context has.
   public var parameters: [GenericParameterDescriptor] {
-    Array(unsafeUninitializedCapacity: numParams) {
+    guard numParams > 0 else { return [] }
+
+    return Array(unsafeUninitializedCapacity: numParams) {
       for i in 0 ..< numParams {
         let param = trailing.load(
           fromByteOffset: i * MemoryLayout<GenericParameterDescriptor>.stride,
@@ -72,7 +74,9 @@ public struct GenericContext: LayoutWrapper {
   
   /// An array of all the generic requirements this context has.
   public var requirements: [GenericRequirementDescriptor] {
-    Array(unsafeUninitializedCapacity: numRequirements) {
+    guard numRequirements > 0 else { return [] }
+
+    return Array(unsafeUninitializedCapacity: numRequirements) {
       for i in 0 ..< numRequirements {
         let requirements = trailing + parameterSize
         let address = requirements.offset(
@@ -186,7 +190,9 @@ public struct GenericContext: LayoutWrapper {
   }
 
   private func loadTrailing<T>(from offset: Int, count: Int, as: T.Type) -> [T] {
-    Array(unsafeUninitializedCapacity: count) {
+    guard count > 0 else { return [] }
+
+    return Array(unsafeUninitializedCapacity: count) {
       for index in 0 ..< count {
         $0[index] = (trailing + offset).load(
           fromByteOffset: index * MemoryLayout<T>.stride,
