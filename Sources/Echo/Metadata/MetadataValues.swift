@@ -247,7 +247,10 @@ extension FunctionMetadata {
 
     /// Whether this function has extended trailing flags.
     public var hasExtendedFlags: Bool {
-      bits & 0x80000000 != 0
+      // `bits` remains `Int` for source compatibility. Use the signed form
+      // of bit 31 so the mask is representable on 32-bit targets such as
+      // wasm32 as well as on 64-bit hosts.
+      bits & Int(Int32.min) != 0
     }
   }
 }
