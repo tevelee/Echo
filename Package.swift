@@ -12,7 +12,11 @@ let package = Package(
     .library(
       name: "EchoRuntimeReflection",
       targets: ["EchoRuntimeReflection"]
-    )
+    ),
+    .library(
+      name: "EchoRuntimeSupport",
+      targets: ["EchoRuntimeSupport"]
+    ),
   ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-atomics.git", from: "1.3.1")
@@ -33,6 +37,10 @@ let package = Package(
       name: "EchoRuntimeReflection",
       dependencies: ["Echo"]
     ),
+    .target(
+      name: "EchoRuntimeSupport",
+      dependencies: ["Echo"]
+    ),
     .testTarget(
       name: "EchoTests",
       dependencies: ["Echo"]
@@ -40,7 +48,11 @@ let package = Package(
     .testTarget(
       name: "EchoRuntimeReflectionTests",
       dependencies: ["EchoRuntimeReflection"]
-    )
+    ),
+    .testTarget(
+      name: "EchoRuntimeSupportTests",
+      dependencies: ["EchoRuntimeSupport"]
+    ),
   ],
   swiftLanguageModes: [.v6]
 )
