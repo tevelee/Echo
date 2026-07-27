@@ -107,25 +107,4 @@ struct ValueStorageTests {
     #expect(weakToken.value == nil)
   }
 
-  @Test
-  func copiesDynamicExistentialValuesIntoOwnedStorage() {
-    var token: LifetimeToken? = LifetimeToken()
-    let weakToken = WeakReference(token)
-    let storage: ValueStorage
-
-    do {
-      let value: Any = OwnedValue(token: token!)
-      storage = ValueStorage(copying: value)
-    }
-    token = nil
-
-    #expect(
-      ObjectIdentifier(storage.type) == ObjectIdentifier(OwnedValue.self)
-    )
-    #expect(storage.state == .initialized)
-    #expect(weakToken.value != nil)
-
-    storage.destroyInitializedValue()
-    #expect(weakToken.value == nil)
-  }
 }

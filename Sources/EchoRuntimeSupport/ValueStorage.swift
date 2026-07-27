@@ -69,26 +69,6 @@ public final class ValueStorage: @unchecked Sendable {
     deallocatesStorage = true
   }
 
-  /// Allocates storage and initializes it with a copy of `value`'s concrete
-  /// dynamic value.
-  ///
-  /// The storage owns the copied value and destroys it unless the caller moves
-  /// or explicitly transfers that ownership.
-  public convenience init(copying value: Any, minimumByteCount: Int = 1) {
-    var container = Echo.container(for: value)
-    self.init(
-      type: container.metadata.type,
-      minimumByteCount: minimumByteCount
-    )
-    zeroBorrowedBytes()
-    ValueOperations.initializeCopy(
-      of: type,
-      from: container.projectValue(),
-      to: storage
-    )
-    markInitialized()
-  }
-
   /// Views initialized caller-owned ABI bits without destroying or
   /// deallocating them.
   public init(borrowingBitsOf type: Any.Type, at storage: UnsafeMutableRawPointer) {
