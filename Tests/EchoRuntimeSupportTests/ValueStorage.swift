@@ -54,6 +54,24 @@ struct ValueStorageTests {
   }
 
   @Test
+  func initializedValueIsDestroyedWhenStorageLeavesScope() {
+    var token: LifetimeToken? = LifetimeToken()
+    let weakToken = WeakReference(token)
+
+    do {
+      let storage = ValueStorage(type: OwnedValue.self)
+      storage.storage.assumingMemoryBound(to: OwnedValue.self)
+        .initialize(to: OwnedValue(token: token!))
+      storage.markInitialized()
+      token = nil
+
+      #expect(weakToken.value != nil)
+    }
+
+    #expect(weakToken.value == nil)
+  }
+
+  @Test
   func movedValueLeavesTransferredStorage() {
     let storage = ValueStorage(type: Int.self)
     storage.storage.assumingMemoryBound(to: Int.self).initialize(to: 42)
