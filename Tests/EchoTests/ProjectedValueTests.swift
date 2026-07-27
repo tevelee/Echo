@@ -23,4 +23,26 @@ struct ProjectedValueTests {
       )
     }
   }
+
+  @Test
+  func keepsMultipleInlineAndBoxedValuesProjectedForOneOperation() {
+    let values: [Any] = [
+      42,
+      ProjectedWideValue(first: 4, second: 5, third: 6),
+    ]
+
+    withProjectedValues(of: values) { projections in
+      #expect(projections.count == 2)
+      #expect(ObjectIdentifier(projections[0].type) == ObjectIdentifier(Int.self))
+      #expect(
+        ObjectIdentifier(projections[1].type)
+          == ObjectIdentifier(ProjectedWideValue.self)
+      )
+      #expect(projections[0].storage.load(as: Int.self) == 42)
+      #expect(
+        projections[1].storage.load(as: ProjectedWideValue.self)
+          == ProjectedWideValue(first: 4, second: 5, third: 6)
+      )
+    }
+  }
 }

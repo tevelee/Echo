@@ -206,3 +206,31 @@ public func withProjectedValue<Result>(
   var box = container(for: instance)
   return try body(box.metadata.type, box.projectValue())
 }
+
+/// Projects erased values' dynamic types and initialized storage for the
+/// duration of `body`.
+///
+/// Each storage pointer is valid only while `body` executes. In particular,
+/// callers must not retain a pointer or use it to materialize a value for a
+/// different existential or ABI representation. This is useful when one
+/// synchronous operation needs several dynamically typed source values to
+/// remain alive at once.
+///
+/// - Parameters:
+///   - instances: Erased Swift values to project.
+///   - body: Receives each value's dynamic type and initialized storage in
+///     the same order as `instances`.
+/// - Returns: The result of `body`.
+public func withProjectedValues<Result>(
+  of instances: [Any],
+  _ body: ([(type: Any.Type, storage: UnsafeRawPointer)]) throws -> Result
+) rethrows -> Result {
+  var boxes = instances.map(container(for:))
+  let values = boxes.indices.map { index in
+    (
+      type: boxes[index].metadata.type,
+      storage: boxes[index].projectValue()
+    )
+  }
+  return try body(values)
+}
