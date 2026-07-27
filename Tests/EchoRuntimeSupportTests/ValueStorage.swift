@@ -3,6 +3,14 @@ import Testing
 
 private final class LifetimeToken {}
 
+private final class WeakReference<Value: AnyObject> {
+  weak var value: Value?
+
+  init(_ value: Value?) {
+    self.value = value
+  }
+}
+
 private struct OwnedValue {
   let token: LifetimeToken
 }
@@ -32,17 +40,17 @@ struct ValueStorageTests {
   @Test
   func initializedValueIsDestroyedExactlyOnce() {
     var token: LifetimeToken? = LifetimeToken()
-    weak let weakToken = token
+    let weakToken = WeakReference(token)
     let storage = ValueStorage(type: OwnedValue.self)
     storage.storage.assumingMemoryBound(to: OwnedValue.self)
       .initialize(to: OwnedValue(token: token!))
     storage.markInitialized()
     token = nil
 
-    #expect(weakToken != nil)
+    #expect(weakToken.value != nil)
     storage.destroyInitializedValue()
     #expect(storage.state == .uninitialized)
-    #expect(weakToken == nil)
+    #expect(weakToken.value == nil)
   }
 
   @Test
