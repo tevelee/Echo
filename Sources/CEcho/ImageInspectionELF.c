@@ -24,10 +24,18 @@
 // current memory. At the moment we only care about Swift's protocol
 // conformances.
 static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
+  // `dlpi_name` is empty for the main executable on ELF platforms. Resolve it
+  // through procfs so discovery can happen after Swift's runtime has started,
+  // alongside every other image, instead of from a C constructor.
+  const char *imagePath = info->dlpi_name;
+  if (imagePath == NULL || imagePath[0] == '\0') {
+    imagePath = "/proc/self/exe";
+  }
+
   // Before doing anything here, check our cache to see if we've already added
   // this image's information. If not, this will cache our image name for future
   // iterations.
-  if (!cacheSharedObject(info->dlpi_name)) {
+  if (!cacheSharedObject(imagePath)) {
     return 0;
   }
   
@@ -39,7 +47,7 @@ static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
   // section header table. This is somewhat unfortunate, but is required
   // because ELF doesn't need the section header table at runtime, so it's
   // most likely stripped from the object currently in memory.
-  FILE *file = fopen(info->dlpi_name, "rb");
+  FILE *file = fopen(imagePath, "rb");
   
   if (file == NULL) {
     return 0;
@@ -163,31 +171,5 @@ static int imageCallback(struct dl_phdr_info *info, size_t size, void *data) {
 void iterateSharedObjects(void) {
   dl_iterate_phdr(imageCallback, NULL);
 }
-
-#define SWIFT_REGISTER_SECTION(name, handle) \
-  handle(&__start_##name, &__stop_##name - &__start_##name);
-
-__attribute__((__constructor__))
-static void loadImages(void) {
-  // This will register the executable's protocol list.
-  SWIFT_REGISTER_SECTION(swift5_protocols, registerProtocols)
-  
-  // This will register the executable's protocol conformance list.
-  SWIFT_REGISTER_SECTION(swift5_protocol_conformances, registerProtocolConformances)
-  
-  // This will register the executable's type metadata list.
-  SWIFT_REGISTER_SECTION(swift5_type_metadata, registerTypeMetadata)
-
-  // Register the separate noncopyable type list after the original list so it
-  // receives the same descriptor decoding without being exposed to an older
-  // Swift runtime.
-  SWIFT_REGISTER_SECTION(swift5_type_metadata_2, registerTypeMetadata)
-
-  SWIFT_REGISTER_SECTION(swift5_replace, registerDynamicReplacementScopes)
-  SWIFT_REGISTER_SECTION(swift5_replac2, registerOpaqueTypeReplacements)
-  SWIFT_REGISTER_SECTION(swift5_accessible_functions, registerAccessibleFunctions)
-}
-
-#undef SWIFT_REGISTER_SECTION
 
 #endif // defined(__ELF__)

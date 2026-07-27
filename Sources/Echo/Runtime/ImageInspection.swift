@@ -349,54 +349,52 @@ func cacheSharedObject(cString: UnsafePointer<CChar>) -> Bool {
 /// Every mutable collection is accessed while holding its corresponding lock.
 /// The callbacks may arrive from arbitrary loader threads, so this reference
 /// type is explicitly marked `@unchecked Sendable` after establishing that
-/// synchronization boundary. Pointer indexes are keyed by their immutable
-/// address and exposed as independent array snapshots, making repeated loader
-/// callbacks idempotent without sharing copy-on-write collection storage.
+/// synchronization boundary.
 final class ImageInspectionStorage: @unchecked Sendable {
   private let protocolLock = NSLock()
-  private var storedProtocols = [UInt: UnsafeRawPointer]()
+  private var storedProtocols = Set<UnsafeRawPointer>()
 
   private let conformanceLock = NSLock()
   private var storedConformances = [UnsafeRawPointer: [ConformanceDescriptor]]()
 
   private let typeLock = NSLock()
-  private var storedTypes = [UInt: UnsafeRawPointer]()
+  private var storedTypes = Set<UnsafeRawPointer>()
 
   private let dynamicReplacementScopeLock = NSLock()
-  private var storedDynamicReplacementScopes = [UInt: UnsafeRawPointer]()
+  private var storedDynamicReplacementScopes = Set<UnsafeRawPointer>()
 
   private let opaqueTypeReplacementLock = NSLock()
-  private var storedOpaqueTypeReplacements = [UInt: UnsafeRawPointer]()
+  private var storedOpaqueTypeReplacements = Set<UnsafeRawPointer>()
 
   private let accessibleFunctionLock = NSLock()
-  private var storedAccessibleFunctions = [UInt: UnsafeRawPointer]()
+  private var storedAccessibleFunctions = Set<UnsafeRawPointer>()
 
   private let sharedObjectLock = NSLock()
   private var storedSharedObjects = Set<String>()
 
-  var protocols: [UnsafeRawPointer] {
-    protocolLock.withLock { Array(storedProtocols.values) }
+  var protocols: Set<UnsafeRawPointer> {
+    protocolLock.withLock { storedProtocols }
   }
 
-  var types: [UnsafeRawPointer] {
-    typeLock.withLock { Array(storedTypes.values) }
+  var types: Set<UnsafeRawPointer> {
+    typeLock.withLock { storedTypes }
   }
 
-  var dynamicReplacementScopes: [UnsafeRawPointer] {
-    dynamicReplacementScopeLock.withLock { Array(storedDynamicReplacementScopes.values) }
+  var dynamicReplacementScopes: Set<UnsafeRawPointer> {
+    dynamicReplacementScopeLock.withLock { storedDynamicReplacementScopes }
   }
 
-  var opaqueTypeReplacements: [UnsafeRawPointer] {
-    opaqueTypeReplacementLock.withLock { Array(storedOpaqueTypeReplacements.values) }
+  var opaqueTypeReplacements: Set<UnsafeRawPointer> {
+    opaqueTypeReplacementLock.withLock { storedOpaqueTypeReplacements }
   }
 
-  var accessibleFunctions: [UnsafeRawPointer] {
-    accessibleFunctionLock.withLock { Array(storedAccessibleFunctions.values) }
+  var accessibleFunctions: Set<UnsafeRawPointer> {
+    accessibleFunctionLock.withLock { storedAccessibleFunctions }
   }
 
   func insertProtocol(_ pointer: UnsafeRawPointer) {
-    protocolLock.withLock {
-      storedProtocols[UInt(bitPattern: pointer)] = pointer
+    _ = protocolLock.withLock {
+      storedProtocols.insert(pointer)
     }
   }
 
@@ -426,26 +424,26 @@ final class ImageInspectionStorage: @unchecked Sendable {
   }
 
   func insertType(_ pointer: UnsafeRawPointer) {
-    typeLock.withLock {
-      storedTypes[UInt(bitPattern: pointer)] = pointer
+    _ = typeLock.withLock {
+      storedTypes.insert(pointer)
     }
   }
 
   func insertDynamicReplacementScope(_ pointer: UnsafeRawPointer) {
-    dynamicReplacementScopeLock.withLock {
-      storedDynamicReplacementScopes[UInt(bitPattern: pointer)] = pointer
+    _ = dynamicReplacementScopeLock.withLock {
+      storedDynamicReplacementScopes.insert(pointer)
     }
   }
 
   func insertOpaqueTypeReplacement(_ pointer: UnsafeRawPointer) {
-    opaqueTypeReplacementLock.withLock {
-      storedOpaqueTypeReplacements[UInt(bitPattern: pointer)] = pointer
+    _ = opaqueTypeReplacementLock.withLock {
+      storedOpaqueTypeReplacements.insert(pointer)
     }
   }
 
   func insertAccessibleFunction(_ pointer: UnsafeRawPointer) {
-    accessibleFunctionLock.withLock {
-      storedAccessibleFunctions[UInt(bitPattern: pointer)] = pointer
+    _ = accessibleFunctionLock.withLock {
+      storedAccessibleFunctions.insert(pointer)
     }
   }
 
