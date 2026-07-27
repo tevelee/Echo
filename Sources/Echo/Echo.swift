@@ -186,3 +186,23 @@ public func container(for instance: Any) -> AnyExistentialContainer {
   
   return box
 }
+
+/// Projects an erased value's dynamic type and initialized storage for the
+/// duration of `body`.
+///
+/// The projected pointer is valid only while `body` executes. This provides a
+/// scoped way to perform an operation selected by the value's dynamic type;
+/// it does not materialize the value for a different existential or ABI
+/// representation.
+///
+/// - Parameters:
+///   - instance: An erased Swift value to project.
+///   - body: Receives the value's dynamic type and initialized storage.
+/// - Returns: The result of `body`.
+public func withProjectedValue<Result>(
+  of instance: Any,
+  _ body: (Any.Type, UnsafeRawPointer) throws -> Result
+) rethrows -> Result {
+  var box = container(for: instance)
+  return try body(box.metadata.type, box.projectValue())
+}
