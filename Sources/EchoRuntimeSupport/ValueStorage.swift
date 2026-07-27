@@ -75,11 +75,16 @@ public final class ValueStorage: @unchecked Sendable {
   /// The storage owns the copied value and destroys it unless the caller moves
   /// or explicitly transfers that ownership.
   public convenience init(copying value: Any, minimumByteCount: Int = 1) {
+    var container = Echo.container(for: value)
     self.init(
-      type: Swift.type(of: value),
+      type: container.metadata.type,
       minimumByteCount: minimumByteCount
     )
-    ValueOperations.initializeCopy(of: value, to: storage)
+    ValueOperations.initializeCopy(
+      of: type,
+      from: container.projectValue(),
+      to: storage
+    )
     markInitialized()
   }
 
