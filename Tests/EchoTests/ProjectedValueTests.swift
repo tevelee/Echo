@@ -45,4 +45,22 @@ struct ProjectedValueTests {
       )
     }
   }
+
+  @Test
+  func keepsMultipleValuesProjectedAcrossSuspension() async {
+    let values: [Any] = [
+      42,
+      ProjectedWideValue(first: 4, second: 5, third: 6),
+    ]
+
+    await withProjectedValues(of: values) { projections in
+      await Task.yield()
+
+      #expect(projections[0].storage.load(as: Int.self) == 42)
+      #expect(
+        projections[1].storage.load(as: ProjectedWideValue.self)
+          == ProjectedWideValue(first: 4, second: 5, third: 6)
+      )
+    }
+  }
 }

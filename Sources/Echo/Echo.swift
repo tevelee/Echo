@@ -234,3 +234,29 @@ public func withProjectedValues<Result>(
   }
   return try body(values)
 }
+
+/// Asynchronously projects erased values' dynamic types and initialized
+/// storage for the duration of `body`.
+///
+/// This has the same pointer-lifetime contract as ``withProjectedValues(of:_:)``
+/// while preserving the projected containers across suspension points in
+/// `body`.
+///
+/// - Parameters:
+///   - instances: Erased Swift values to project.
+///   - body: Receives each value's dynamic type and initialized storage in
+///     the same order as `instances`.
+/// - Returns: The result of `body`.
+public func withProjectedValues<Result>(
+  of instances: [Any],
+  _ body: ([(type: Any.Type, storage: UnsafeRawPointer)]) async throws -> Result
+) async rethrows -> Result {
+  var boxes = instances.map(container(for:))
+  let values = boxes.indices.map { index in
+    (
+      type: boxes[index].metadata.type,
+      storage: boxes[index].projectValue()
+    )
+  }
+  return try await body(values)
+}
