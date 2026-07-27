@@ -247,6 +247,7 @@ public func withProjectedValues<Result>(
 ///   - body: Receives each value's dynamic type and initialized storage in
 ///     the same order as `instances`.
 /// - Returns: The result of `body`.
+@available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
 public func withProjectedValues<Result>(
   of instances: [Any],
   _ body: ([(type: Any.Type, storage: UnsafeRawPointer)]) async throws -> Result
