@@ -225,4 +225,33 @@ extension EchoTests {
     #expect(imageInspectionReplacementTarget() == 42)
     #expect(dynamicReplacementScopes.isEmpty == false)
   }
+
+  @Test
+  func imageInspectionStorageDeduplicatesAddressSnapshots() {
+    let storage = ImageInspectionStorage()
+    let first = UnsafeRawPointer(bitPattern: 0x1000)!
+    let second = UnsafeRawPointer(bitPattern: 0x2000)!
+
+    storage.insertProtocol(first)
+    storage.insertProtocol(first)
+    let snapshot = storage.protocols
+    storage.insertProtocol(second)
+
+    #expect(snapshot == [first])
+    #expect(Set(storage.protocols) == Set([first, second]))
+
+    storage.insertType(first)
+    storage.insertType(first)
+    storage.insertDynamicReplacementScope(first)
+    storage.insertDynamicReplacementScope(first)
+    storage.insertOpaqueTypeReplacement(first)
+    storage.insertOpaqueTypeReplacement(first)
+    storage.insertAccessibleFunction(first)
+    storage.insertAccessibleFunction(first)
+
+    #expect(storage.types == [first])
+    #expect(storage.dynamicReplacementScopes == [first])
+    #expect(storage.opaqueTypeReplacements == [first])
+    #expect(storage.accessibleFunctions == [first])
+  }
 }
