@@ -8,6 +8,10 @@ let package = Package(
     .library(
       name: "Echo",
       targets: ["Echo"]
+    ),
+    .library(
+      name: "EchoRuntimeReflection",
+      targets: ["EchoRuntimeReflection"]
     )
   ],
   dependencies: [
@@ -25,9 +29,17 @@ let package = Package(
         .product(name: "Atomics", package: "swift-atomics"),
       ]
     ),
+    .target(
+      name: "EchoRuntimeReflection",
+      dependencies: ["Echo"]
+    ),
     .testTarget(
       name: "EchoTests",
       dependencies: ["Echo"]
+    ),
+    .testTarget(
+      name: "EchoRuntimeReflectionTests",
+      dependencies: ["EchoRuntimeReflection"]
     )
   ],
   swiftLanguageModes: [.v6]

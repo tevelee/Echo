@@ -37,7 +37,9 @@ public struct FunctionMetadata: Metadata, LayoutWrapper {
   
   /// An array of parameter types for this function.
   public var paramTypes: [Any.Type] {
-    Array(unsafeUninitializedCapacity: flags.numParams) {
+    guard flags.numParams > 0 else { return [] }
+
+    return Array(unsafeUninitializedCapacity: flags.numParams) {
       for i in 0 ..< flags.numParams {
         let type = trailing.load(
           fromByteOffset: i * MemoryLayout<Any.Type>.size,
@@ -59,7 +61,7 @@ public struct FunctionMetadata: Metadata, LayoutWrapper {
   /// An array of parameter flags that describe each parameter for this
   /// function, if any.
   public var paramFlags: [ParamFlags] {
-    guard flags.hasParamFlags else { return [] }
+    guard flags.hasParamFlags, flags.numParams > 0 else { return [] }
     
     return Array(unsafeUninitializedCapacity: flags.numParams) {
       let start = trailing.offset(of: flags.numParams)
