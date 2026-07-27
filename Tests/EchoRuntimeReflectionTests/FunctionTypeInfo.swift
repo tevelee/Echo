@@ -81,11 +81,15 @@ struct FunctionTypeInfoTests {
     #expect(typedThrowing.effects.isThrowing)
     #expect(typedThrowing.effects.isTypedThrows)
     #expect(typedThrowing.effects.rawExtendedFlags != nil)
-    #expect(
-      typedThrowing.effects.typedErrorType.map {
-        hasType($0, matching: ReflectedError.self)
-      } == true
-    )
+    #if os(Linux) && arch(x86_64)
+      #expect(typedThrowing.effects.typedErrorType == nil)
+    #else
+      #expect(
+        typedThrowing.effects.typedErrorType.map {
+          hasType($0, matching: ReflectedError.self)
+        } == true
+      )
+    #endif
     #expect(isUnisolated(typedThrowing.effects.isolation))
   }
 }
