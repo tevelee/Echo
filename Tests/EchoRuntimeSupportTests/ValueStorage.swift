@@ -64,4 +64,28 @@ struct ValueStorageTests {
     #expect(value == 42)
     #expect(storage.state == .transferred)
   }
+
+  @Test
+  func copiedValuesRemainOwnedUntilDestroyed() {
+    var token: LifetimeToken? = LifetimeToken()
+    let weakToken = WeakReference(token)
+    let destination = ValueStorage.allocate(for: OwnedValue.self)
+    defer { destination.deallocate() }
+
+    do {
+      let source = OwnedValue(token: token!)
+      withUnsafePointer(to: source) { pointer in
+        ValueOperations.initializeCopy(
+          of: OwnedValue.self,
+          from: UnsafeRawPointer(pointer),
+          to: destination
+        )
+      }
+    }
+    token = nil
+
+    #expect(weakToken.value != nil)
+    ValueOperations.destroy(OwnedValue.self, at: destination)
+    #expect(weakToken.value == nil)
+  }
 }

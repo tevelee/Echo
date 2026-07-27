@@ -33,7 +33,6 @@ public final class ValueStorage: @unchecked Sendable {
   /// The current ownership state of `storage`.
   public private(set) var state: State
 
-  private let metadata: Metadata
   private let byteCount: Int
   private let deallocatesStorage: Bool
 
@@ -63,7 +62,6 @@ public final class ValueStorage: @unchecked Sendable {
   /// `minimumByteCount` lets a register codec reserve complete words even for
   /// zero-size Swift values.
   public init(type: Any.Type, minimumByteCount: Int = 1) {
-    metadata = reflect(type)
     self.type = type
     byteCount = Self.byteCount(for: type, minimum: minimumByteCount)
     storage = Self.allocate(for: type, minimumByteCount: minimumByteCount)
@@ -74,10 +72,9 @@ public final class ValueStorage: @unchecked Sendable {
   /// Views initialized caller-owned ABI bits without destroying or
   /// deallocating them.
   public init(borrowingBitsOf type: Any.Type, at storage: UnsafeMutableRawPointer) {
-    metadata = reflect(type)
     self.type = type
     self.storage = storage
-    byteCount = max(metadata.vwt.size, 1)
+    byteCount = Self.byteCount(for: type)
     state = .borrowedBits
     deallocatesStorage = false
   }
@@ -85,10 +82,9 @@ public final class ValueStorage: @unchecked Sendable {
   /// Owns an initialized value in caller-provided storage and destroys it when
   /// necessary, without deallocating those caller-owned bytes.
   public init(owningValueOf type: Any.Type, at storage: UnsafeMutableRawPointer) {
-    metadata = reflect(type)
     self.type = type
     self.storage = storage
-    byteCount = max(metadata.vwt.size, 1)
+    byteCount = Self.byteCount(for: type)
     state = .initialized
     deallocatesStorage = false
   }
@@ -110,7 +106,7 @@ public final class ValueStorage: @unchecked Sendable {
   /// Destroys the initialized value while retaining the storage allocation.
   public func destroyInitializedValue() {
     precondition(state == .initialized)
-    metadata.vwt.destroy(storage)
+    ValueOperations.destroy(type, at: storage)
     state = .uninitialized
   }
 
@@ -136,7 +132,7 @@ public final class ValueStorage: @unchecked Sendable {
 
   deinit {
     if state == .initialized {
-      metadata.vwt.destroy(storage)
+      ValueOperations.destroy(type, at: storage)
     }
     if deallocatesStorage {
       storage.deallocate()
