@@ -80,6 +80,7 @@ public final class ValueStorage: @unchecked Sendable {
       type: container.metadata.type,
       minimumByteCount: minimumByteCount
     )
+    zeroBorrowedBytes()
     ValueOperations.initializeCopy(
       of: type,
       from: container.projectValue(),
