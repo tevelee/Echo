@@ -57,7 +57,9 @@ struct FunctionTypeInfoTests {
     #expect(variadic.parameters.count == 2)
     #expect(hasType(variadic.parameters[0].type, matching: Int.self))
     #expect(variadic.parameters[0].ownership == .default)
+    #expect(variadic.parameters[0].rawFlags == 0)
     #expect(variadic.parameters[1].isVariadic)
+    #expect(variadic.parameters[1].rawFlags != 0)
     #expect(hasType(variadic.resultType, matching: String.self))
 
     let untypedThrowing = try #require(
@@ -65,6 +67,7 @@ struct FunctionTypeInfoTests {
     )
     #expect(untypedThrowing.effects.isThrowing)
     #expect(untypedThrowing.effects.typedErrorType == nil)
+    #expect(untypedThrowing.effects.rawExtendedFlags == nil)
   }
 
   @available(macOS 15.0, *)
@@ -77,6 +80,7 @@ struct FunctionTypeInfoTests {
     #expect(typedThrowing.effects.isAsync)
     #expect(typedThrowing.effects.isThrowing)
     #expect(typedThrowing.effects.isTypedThrows)
+    #expect(typedThrowing.effects.rawExtendedFlags != nil)
     #expect(
       typedThrowing.effects.typedErrorType.map {
         hasType($0, matching: ReflectedError.self)

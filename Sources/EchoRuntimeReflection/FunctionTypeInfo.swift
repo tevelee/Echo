@@ -77,6 +77,10 @@ extension FunctionTypeInfo {
     /// fail-closed handling of future ABI values.
     public let rawOwnership: UInt8
 
+    /// The unprocessed parameter flags for diagnostics and fail-closed
+    /// handling of future ABI values.
+    public let rawFlags: UInt32
+
     /// Whether the parameter is variadic.
     public let isVariadic: Bool
 
@@ -96,6 +100,7 @@ extension FunctionTypeInfo {
       self.type = type
 
       let bits = flags?.bits ?? 0
+      rawFlags = bits
       rawOwnership = UInt8(truncatingIfNeeded: bits & 0x7F)
       ownership = Ownership(rawValue: rawOwnership)
       isVariadic = bits & 0x80 != 0
@@ -140,6 +145,11 @@ extension FunctionTypeInfo {
     /// The typed error, when the function uses `throws(ErrorType)`.
     public let typedErrorType: Any.Type?
 
+    /// The unprocessed extended effect flags, when the runtime represents
+    /// them. Consumers that cannot support an unknown bit can reject the
+    /// function shape instead of silently assuming an older ABI.
+    public let rawExtendedFlags: UInt32?
+
     /// Whether the function is `@Sendable`.
     public let isSendable: Bool
 
@@ -172,9 +182,10 @@ extension FunctionTypeInfo {
 
     fileprivate init(metadata: FunctionMetadata) {
       let flags = metadata.flags
+      let extendedFlags = metadata.extendedFlags
       isAsync = flags.isAsync
       isThrowing = flags.throws
-      isTypedThrows = metadata.extendedFlags?.isTypedThrows == true
+      isTypedThrows = extendedFlags?.isTypedThrows == true
       #if os(Linux) && arch(x86_64)
         typedErrorType = nil
       #else
@@ -184,9 +195,11 @@ extension FunctionTypeInfo {
       isEscaping = flags.isEscaping
       isDifferentiable = flags.isDifferentiable
 
+      rawExtendedFlags = extendedFlags?.bits
+
       if let globalActorType = metadata.globalActorType {
         isolation = .globalActor(globalActorType)
-      } else if let extendedFlags = metadata.extendedFlags {
+      } else if let extendedFlags {
         let rawIsolation = extendedFlags.bits & 0xE
         switch rawIsolation {
         case 0:
