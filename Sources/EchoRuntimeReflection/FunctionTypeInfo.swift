@@ -129,6 +129,14 @@ extension FunctionTypeInfo {
     /// Whether the function throws an error.
     public let isThrowing: Bool
 
+    /// Whether the function uses `throws(ErrorType)`.
+    ///
+    /// A typed error can be unavailable on runtimes where Swift does not make
+    /// its metadata safe to read. In that case `isTypedThrows` remains true
+    /// while `typedErrorType` is `nil`, so clients can reject the shape rather
+    /// than treating it as an untyped throw.
+    public let isTypedThrows: Bool
+
     /// The typed error, when the function uses `throws(ErrorType)`.
     public let typedErrorType: Any.Type?
 
@@ -144,11 +152,34 @@ extension FunctionTypeInfo {
     /// The function's isolation.
     public let isolation: Isolation
 
+    /// Whether the function is `@isolated(any)`.
+    public var isIsolatedAny: Bool {
+      guard case .isolatedAny = isolation else { return false }
+      return true
+    }
+
+    /// Whether the function is `nonisolated(nonsending)`.
+    public var isNonisolatedNonsending: Bool {
+      guard case .nonisolatedNonsending = isolation else { return false }
+      return true
+    }
+
+    /// The global actor type when the function is globally isolated.
+    public var globalActorType: Any.Type? {
+      guard case .globalActor(let type) = isolation else { return nil }
+      return type
+    }
+
     fileprivate init(metadata: FunctionMetadata) {
       let flags = metadata.flags
       isAsync = flags.isAsync
       isThrowing = flags.throws
-      typedErrorType = metadata.thrownErrorType
+      isTypedThrows = metadata.extendedFlags?.isTypedThrows == true
+      #if os(Linux) && arch(x86_64)
+        typedErrorType = nil
+      #else
+        typedErrorType = isTypedThrows ? metadata.thrownErrorType : nil
+      #endif
       isSendable = flags.isSendable
       isEscaping = flags.isEscaping
       isDifferentiable = flags.isDifferentiable

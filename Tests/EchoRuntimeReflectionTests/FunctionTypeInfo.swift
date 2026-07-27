@@ -76,6 +76,7 @@ struct FunctionTypeInfoTests {
 
     #expect(typedThrowing.effects.isAsync)
     #expect(typedThrowing.effects.isThrowing)
+    #expect(typedThrowing.effects.isTypedThrows)
     #expect(
       typedThrowing.effects.typedErrorType.map {
         hasType($0, matching: ReflectedError.self)
