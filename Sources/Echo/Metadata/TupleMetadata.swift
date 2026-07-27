@@ -49,6 +49,7 @@ public struct TupleMetadata: Metadata, LayoutWrapper {
   /// An array of elements that describe each tuple more in depth, including
   /// offset and type.
   public var elements: [Element] {
+    guard numElements > 0 else { return [] }
     return Array(unsafeUninitializedCapacity: numElements) {
       for i in 0 ..< numElements {
         let address = trailing.offset(of: i, as: _TupleElement.self)

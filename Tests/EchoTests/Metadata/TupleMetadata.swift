@@ -41,4 +41,12 @@ extension EchoTests {
     #expect(metadata.vwt.stride == 24)
     #expect(metadata.vwt.flags.bits == 65543)
   }
+
+  @Test
+  func testZeroElementTupleMetadata() throws {
+    let metadata = try #require(reflect(Void.self) as? TupleMetadata)
+
+    #expect(metadata.numElements == 0)
+    #expect(metadata.elements.isEmpty)
+  }
 }
