@@ -14,7 +14,7 @@
 // Move the pointer down one word to be correct.
 #define BUILTIN(NAME, SYMBOL) \
 void *getBuiltin##NAME##Metadata(void) { \
-  return &$s##SYMBOL##N + sizeof(void*); \
+  return (void *)(&$s##SYMBOL##N + sizeof(void*)); \
 }
 #include "include/Builtins.def"
 

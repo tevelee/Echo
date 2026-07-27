@@ -17,8 +17,15 @@
 // Example: Builtin.NativeObject Metadata is $sBoN
 //
 // Reference the runtime defined metadata variable for builtin types.
+//
+// Declared as `char` rather than `void`: only the symbol's *address* is ever
+// used (see KnownMetadata.c), and `extern void x;` is a GNU C extension that
+// is illegal in C++. Declaring it `char` keeps the same undefined symbol
+// reference and the same byte-wise pointer arithmetic while letting this
+// header be included from a Swift target that enables C++ interoperability,
+// which reparses every imported header as C++.
 #define BUILTIN(NAME, SYMBOL) \
-extern void $s##SYMBOL##N;
+extern char $s##SYMBOL##N;
 #include "Builtins.def"
 
 #undef BUILTIN
